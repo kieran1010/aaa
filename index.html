@@ -27,7 +27,7 @@ button{font-family:inherit;cursor:pointer;font-size:13px}
 .tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;gap:2px;overflow-x:auto}
 .tab{padding:9px 14px;font-size:12px;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
 .tab:hover{color:var(--text2)}
-.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}.tab-emg{color:#f87171!important}.tab-emg.active{color:#ef4444!important;border-bottom-color:#ef4444!important}
 .page{display:none;padding:16px;max-width:1100px;margin:0 auto}
 .page.active{display:block}
 .card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:14px;margin-bottom:12px}
@@ -139,16 +139,16 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 <!-- TABS -->
 <div class="tabs">
   <div class="tab active" onclick="showTab('links',this)">Home</div>
-  <div class="tab" onclick="showTab('la',this)">LA Calculator</div>
-  <div class="tab" onclick="showTab('paed',this)">Paediatric Drugs</div>
-  <div class="tab" onclick="showTab('drugs',this)">Adult Drugs</div>
   <div class="tab" onclick="showTab('anticoag',this)">Anticoagulants</div>
-  <div class="tab" onclick="showTab('opioid',this)">Opioid Conversion</div>
-  <div class="tab" onclick="showTab('regional',this)">Regional</div>
-  <div class="tab" onclick="showTab('emergency',this)">Emergency</div>
   <div class="tab" onclick="showTab('consent',this)">Consent</div>
+  <div class="tab" onclick="showTab('drugs',this)">Drug Dosing</div>
+  <div class="tab" onclick="showTab('la',this)">LA Calculator</div>
+  <div class="tab" onclick="showTab('opioid',this)">Opioid Conversion</div>
+  <div class="tab" onclick="showTab('paed',this)">Paediatrics</div>
+  <div class="tab" onclick="showTab('regional',this)">Regional</div>
   <div class="tab" onclick="showTab('wellbeing',this)">Wellbeing</div>
   <div class="tab" onclick="showTab('protocols',this)">Notes</div>
+  <div class="tab tab-emg" onclick="showTab('emergency',this)">Emergency</div>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -397,6 +397,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="ls"><div class="lst">Utilities</div><div class="lgrid">
     <a class="lcard" href="#" onclick="tribOpen()" id="home-trib-link"><span class="lar">↗</span><div class="lct">Tribulator</div><div class="lcs">PubMed search &amp; paper library</div></a>
     <a class="lcard" href="#" onclick="chartedOpen()"><span class="lar">↗</span><div class="lct">Pre-assessment</div><div class="lcs">Opens Charted in a new tab</div></a>
+    <a class="lcard" href="http://claude.ai/public/artifacts/f57cd465-24cb-44ff-a3ed-fbaa566a6dc6" target="_blank"><span class="lar">↗</span><div class="lct">Clinical Research Companion</div><div class="lcs">Daily digest &amp; quiz mode</div></a>
   </div></div>
 </div>
 
@@ -1504,67 +1505,70 @@ function getPdWt() {
 
 const PD_CATS = {
   'Premedication': [
-    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: 'Max 15 mg' },
-    { n: 'Clonidine',                doseStr: '4',    unit: 'mcg/kg', route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
+    { n: 'Clonidine',                doseStr: '4',    unit: 'mcg/kg', route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 150, note: 'Max 150 mcg' },
     { n: 'Dexmedetomidine',          doseStr: '4',    unit: 'mcg/kg', route: 'in',   concs: [{ c: 'intranasal', mgml: null }], note: '' },
-    { n: 'Ketamine',                 doseStr: '5',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
+    { n: 'Ketamine',                 doseStr: '5',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 500, note: 'Max 500 mg' },
+    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: 'Max 15 mg' },
   ],
   'Induction': [
-    { n: 'Propofol',                 doseStr: '3',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
-    { n: 'Ketamine (IV)',            doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
+    { n: 'Fentanyl',                 doseStr: '2',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], maxDose: 200, note: 'Max 200 mcg' },
     { n: 'Ketamine (IM)',            doseStr: '5',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
-    { n: 'Fentanyl',                 doseStr: '2',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], note: '' },
+    { n: 'Ketamine (IV)',            doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
+    { n: 'Propofol',                 doseStr: '3',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
   ],
   'Muscle relaxants': [
-    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 150 mg' },
-    { n: 'Suxamethonium (IM)',       doseStr: '4',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'If no IV access' },
+    { n: 'Atracurium',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Rocuronium',               doseStr: '0.6',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Rocuronium (RSI)',         doseStr: '1.2',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
-    { n: 'Atracurium',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
+    { n: 'Suxamethonium (IM)',       doseStr: '4',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'If no IV access' },
+    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 150 mg' },
     { n: 'Vecuronium',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL',  mgml: 1  }], note: '' },
   ],
   'Reversal': [
-    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Deep: 16 mg/kg; moderate: 4 mg/kg' },
-    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], note: 'Max 5 mg; with glycopyrrolate' },
-    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], note: 'Max 0.4 mg' },
     { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], note: 'Min 0.1 mg; max 0.5 mg' },
+    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], note: 'Max 0.4 mg' },
+    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], note: 'Max 5 mg; with glycopyrrolate' },
+    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Deep: 16 mg/kg; moderate: 4 mg/kg' },
   ],
   'Analgesia (IV)': [
-    { n: 'Morphine',                 doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL', mgml: 1 }], note: '' },
     { n: 'Fentanyl',                 doseStr: '1',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], note: '' },
+    { n: 'Ketamine',                 doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: 'Sub-dissociative' },
+    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], note: 'Max 15 mg; >6 months' },
+    { n: 'Morphine',                 doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL', mgml: 1 }], maxDose: 10, note: 'Max 10 mg' },
     { n: 'Paracetamol',              doseStr: 'wt',   unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '<5 kg: 7.5 mg/kg . 5-10 kg: 10 mg/kg . >10 kg: 15 mg/kg . max 1000 mg', paracetamolIV: true },
     { n: 'Parecoxib',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: 'IV', mgml: null }], note: 'Max 40 mg; >6 months only' },
-    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], note: 'Max 15 mg; >6 months' },
-    { n: 'Ketamine',                 doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: 'Sub-dissociative' },
   ],
   'Analgesia (oral)': [
-    { n: 'Morphine',                 doseStr: '0.2',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
-    { n: 'Paracetamol (load)',       doseStr: '20',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
-    { n: 'Paracetamol (maintenance)',doseStr: '15',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
-    { n: 'Ibuprofen',               doseStr: '10',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
-    { n: 'Tramadol',                doseStr: '1',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: '' },
+    { n: 'Ibuprofen',               doseStr: '10',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 400, note: 'Max 400 mg' },
+    { n: 'Morphine',                 doseStr: '0.2',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 10, note: 'Max 10 mg' },
+    { n: 'Paracetamol (load)',       doseStr: '20',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 1500, note: 'Max 1500 mg' },
+    { n: 'Paracetamol (maintenance)',doseStr: '15',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 1000, note: 'Max 1000 mg' },
+    { n: 'Tramadol',                doseStr: '1',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 100, note: 'Max 100 mg' },
   ],
   'Antiemetics': [
-    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], note: 'Max 4 mg; >1 month' },
-    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], note: 'Max 8 mg' },
     { n: 'Cyclizine',               doseStr: '1',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 50 mg; >6 yr; slow IV' },
+    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], note: 'Max 8 mg' },
+    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], note: 'Max 4 mg; >1 month' },
   ],
   'Emergency': [
-    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }, { c: '1:1000 (1 mg/mL)', mgml: 1 }], note: 'IM preferred; max 0.5 mg' },
-    { n: 'Hydrocortisone',          doseStr: '4',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 200 mg' },
-    { n: 'Salbutamol',              doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Slow IV' },
-    { n: 'Ephedrine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: '' },
-    { n: 'Metaraminol',             doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Titrate cautiously' },
-    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: 'Repeat 0.2 then 0.6 mg/kg' },
-    { n: 'Amiodarone',              doseStr: '5',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: '' },
+    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: 'Rapid IV; max 6 mg 1st dose' },
+    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }, { c: '1:1000 (1 mg/mL)', mgml: 1 }], note: 'Anaphylaxis: 0.01 mg/kg IM. Max 0.5 mg' },
+    { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], note: 'IV/IO. Max 1 mg' },
+    { n: 'Amiodarone',              doseStr: '5',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], maxDose: 300, note: 'Pulseless VT/VF. Max 300 mg' },
+    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 600  }], note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
+    { n: 'Ephedrine',               doseStr: '0.25', unit: 'mg/kg',  route: 'im',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: '' },
+    { n: 'Hydrocortisone',          doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: 'Anaphylaxis, adrenal crisis' },
+    { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Titrate to effect' },
+    { n: 'Salbutamol',              doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Slow IV over 5-10 min' },
   ],
   'Fluids': [
-    { n: 'Maintenance',             doseStr: '4/2/1', unit: 'mL/kg/hr', route: 'iv', concs: [{ c: '-', mgml: null }], note: '4 for 1st 10 kg, 2 next 10, 1 thereafter' },
-    { n: 'Fluid bolus',             doseStr: '20',    unit: 'mL/kg',    route: 'iv', concs: [{ c: '0.9% NaCl / Plasmalyte', mgml: null }], note: 'Reassess after each bolus' },
-    { n: 'pRBC',                    doseStr: '10',    unit: 'mL/kg',    route: 'iv', concs: [{ c: 'pRBC', mgml: null }], note: 'Raises Hb ~10-15 g/L per 10 mL/kg' },
-    { n: 'Albumin 4%',              doseStr: '10',    unit: 'mL/kg',    route: 'iv', concs: [{ c: '4%', mgml: null }], note: 'Volume expansion; neonates' },
+    { n: 'Albumin 4%',              doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '4%', mgml: null }], note: 'Colloid resuscitation' },
+    { n: 'Fluid bolus',             doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '0.9% NaCl / Plasmalyte', mgml: null }], note: 'Sepsis: up to 60 mL/kg. Reassess after each bolus' },
+    { n: 'Maintenance',             doseStr: '4-2-1',unit: '',       route: 'iv',   concs: [{ c: '-', mgml: null }], note: '4 mL/kg/hr for first 10 kg + 2 for next 10 + 1 thereafter' },
+    { n: 'pRBC',                    doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: 'pRBC', mgml: null }], note: 'Raises Hb ~10 g/L per 5 mL/kg' },
   ],
 };
+
 
 function parseDoseRange(str) {
   if (!str || str === '4/2/1') return null;
@@ -1700,9 +1704,15 @@ function calcPaed() {
       const capped = Math.min(raw, 1000);
       dose = { lo: capped, hi: capped };
     } else {
-      dose = calcDose(drug.doseStr, wt);
+      const rawDose = calcDose(drug.doseStr, wt);
+      if (rawDose && drug.maxDose != null) {
+        dose = { lo: Math.min(rawDose.lo, drug.maxDose), hi: Math.min(rawDose.hi, drug.maxDose) };
+      } else {
+        dose = rawDose;
+      }
     }
-    const doseStr = fmtDosePair(dose, drug.unit);
+    const isCapped = dose && drug.maxDose != null && dose.hi >= drug.maxDose;
+    const doseStr  = fmtDosePair(dose, drug.unit) + (isCapped ? '*' : '');
     const isOral  = drug.route === 'oral' || drug.route === 'in';
     const multi   = drug.concs.length > 1;
     drug.concs.forEach((cv, ci) => {
@@ -1936,80 +1946,80 @@ function tribFire(params) {
 const DRUG_CATS = {
   'Vasopressors & inotropes': [
     { name:'Adrenaline',             conc:'40 mcg/mL',    bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:0.01, infHi:1,    infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Noradrenaline',          conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:1,    infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Dopamine',               conc:'4 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:1,    infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
     { name:'Dobutamine',             conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:2.5,  infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Dopamine',               conc:'4 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:1,    infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
     { name:'Ephedrine',              conc:'6 mg/mL',      bolusLo:0.25, bolusHi:0.25, bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'' },
-    { name:'Metaraminol',            conc:'0.5 mg/mL',    bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:0.5,  infHi:2,    infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Vasopressin',            conc:'0.4 U/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'units(fixed)',infLo:0.02, infHi:0.06, infUnit:'units/kg/hr',   notes:'' },
     { name:'Isoprenaline',           conc:'2 mcg/mL',     bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.5,  infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Milrinone',              conc:'200 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.2,  infHi:0.75, infUnit:'mcg/kg/min',    notes:'5 mg inhaled' },
-    { name:'Phenylephrine',          conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Levosimendan',           conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.2,  infUnit:'mcg/kg/min',    notes:'Cardiogenic shock. Load 6-12 mcg/kg over 10 min (optional). Run for 24 hr' },
+    { name:'Metaraminol',            conc:'0.5 mg/mL',    bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:0.5,  infHi:2,    infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Milrinone',              conc:'200 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.2,  infHi:0.75, infUnit:'mcg/kg/min',    notes:'5 mg inhaled' },
+    { name:'Noradrenaline',          conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:1,    infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Phenylephrine',          conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Vasopressin',            conc:'0.4 U/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'units(fixed)',infLo:0.02, infHi:0.06, infUnit:'units/kg/hr',   notes:'' },
   ],
   'Antihypertensives & rate control': [
-    { name:'GTN',                    conc:'100 mcg/mL',   bolusLo:0.5,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Labetalol',              conc:'1 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:5,    infHi:50,   infUnit:'mcg/kg/min',    notes:'0.25-0.5 mg/kg bolus' },
-    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:1,    bolusHi:5,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Give 1-2 mg slow IV, repeat to 5 mg. Rate control in AF' },
-    { name:'Hydralazine',            conc:'',             bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Acute hypertension, obstetrics. Give slowly; onset 10-20 min' },
-    { name:'Nicardipine',            conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Controlled hypotension, hypertensive crisis' },
-    { name:'Digoxin',                conc:'50 mcg/mL',    bolusLo:8,    bolusHi:12,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Rate control in AF. Loading dose in divided doses. Renal dose adjustment' },
-    { name:'Sodium nitroprusside',   conc:'',             bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Light-protect infusion. Monitor for cyanide toxicity if >3 mcg/kg/min or >72 hr' },
-    { name:'Phentolamine',           conc:'600 mcg/mL',   bolusLo:1,    bolusHi:2,    bolusUnit:'mg (fixed)', infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Clonidine',              conc:'',             bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'' },
+    { name:'Digoxin',                conc:'50 mcg/mL',    bolusLo:8,    bolusHi:12,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Rate control in AF. Loading dose in divided doses. Renal dose adjustment' },
+    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'' },
+    { name:'GTN',                    conc:'100 mcg/mL',   bolusLo:0.5,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Hydralazine',            conc:'',             bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Acute hypertension, obstetrics. Give slowly; onset 10-20 min' },
+    { name:'Labetalol',              conc:'1 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:5,    infHi:50,   infUnit:'mcg/kg/min',    notes:'0.25-0.5 mg/kg bolus' },
     { name:'Magnesium',              conc:'',             bolusLo:50,   bolusHi:50,   bolusUnit:'mg/kg',      infLo:1,    infHi:2,    infUnit:'g/hr',          notes:'PET: 4 g over 20 min then 1 g/hr' },
+    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:1,    bolusHi:5,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Give 1-2 mg slow IV, repeat to 5 mg. Rate control in AF' },
+    { name:'Nicardipine',            conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Controlled hypotension, hypertensive crisis' },
+    { name:'Phentolamine',           conc:'600 mcg/mL',   bolusLo:1,    bolusHi:2,    bolusUnit:'mg (fixed)', infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Sodium nitroprusside',   conc:'',             bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Light-protect infusion. Monitor for cyanide toxicity if >3 mcg/kg/min or >72 hr' },
   ],
   'Antiarrhythmics': [
     { name:'Adenosine',              conc:'',             bolusLo:0.3,  bolusHi:0.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Rapid IV push' },
-    { name:'Amiodarone',             conc:'50 mg/mL',     bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:5,    infHi:15,   infUnit:'mcg/kg/min',    notes:'Load 300 mg IV over 20-60 min, then 900 mg over 24 hr. VT/AF' },
-    { name:'Lignocaine',             conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:20,   infHi:50,   infUnit:'mcg/kg/min',    notes:'Ventricular arrhythmias. Max bolus 6 mg/kg in 1 hr' },
+    { name:'Amiodarone',             conc:'50 mg/mL',     bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:5,    infHi:15,   infUnit:'mcg/kg/min',    maxDose:300,  notes:'Max 300 mg bolus. Load 300 mg IV over 20-60 min, then 900 mg over 24 hr. VT/AF' },
     { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max 6 mg' },
+    { name:'Lignocaine',             conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:20,   infHi:50,   infUnit:'mcg/kg/min',    notes:'Ventricular arrhythmias. Max bolus 6 mg/kg in 1 hr' },
     { name:'Sotalol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'AF/flutter. Infuse over 20 min. QTc monitoring. Avoid if renal impairment' },
   ],
   'General anaesthesia & sedation': [
-    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:25,   infHi:75,   infUnit:'mcg/kg/min',    notes:'TIVA: typically 50-150 mcg/kg/min. Sedation: 5-50 mcg/kg/min' },
-    { name:'Midazolam',              conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'Titrate slowly. Reduce in elderly' },
-    { name:'Ketamine',               conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:2,    bolusUnit:'mg/kg',      infLo:2,    infHi:15,   infUnit:'mcg/kg/min',    notes:'Induction 1-2 mg/kg IV, sedation/dissociation lower range' },
-    { name:'Dexmedetomidine',        conc:'4 mcg/mL',     bolusLo:0.2,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:0.6,  infHi:1.0,  infUnit:'mcg/kg/hr',     notes:'' },
-    { name:'Thiopentone',            conc:'25 mg/mL',     bolusLo:3,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Induction. Reduce in compromised patients. ICP reduction' },
-    { name:'Remifentanil',           conc:'50 mcg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:2,    infUnit:'mcg/kg/min',    notes:'TIVA/analgosedation. Context-sensitive half-life ~3 min. No bolus recommended' },
-    { name:'Fentanyl',               conc:'10 mcg/mL',    bolusLo:0.2,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'' },
-    { name:'Morphine',               conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:10,   infHi:40,   infUnit:'mcg/kg/hr',     notes:'Titrate to effect. Reduce in renal impairment' },
     { name:'Alfentanil',             conc:'500 mcg/mL',   bolusLo:5,    bolusHi:20,   bolusUnit:'mcg/kg',     infLo:0.5,  infHi:3,    infUnit:'mcg/kg/min',    notes:'Short procedures. Rapid onset/offset' },
+    { name:'Dexmedetomidine',        conc:'4 mcg/mL',     bolusLo:0.2,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:0.6,  infHi:1.0,  infUnit:'mcg/kg/hr',     notes:'' },
+    { name:'Fentanyl',               conc:'10 mcg/mL',    bolusLo:0.2,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'' },
+    { name:'Ketamine',               conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:2,    bolusUnit:'mg/kg',      infLo:2,    infHi:15,   infUnit:'mcg/kg/min',    notes:'Induction 1-2 mg/kg IV, sedation/dissociation lower range' },
+    { name:'Midazolam',              conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'Titrate slowly. Reduce in elderly' },
+    { name:'Morphine',               conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:10,   infHi:40,   infUnit:'mcg/kg/hr',     notes:'Titrate to effect. Reduce in renal impairment' },
+    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:25,   infHi:75,   infUnit:'mcg/kg/min',    notes:'TIVA: typically 50-150 mcg/kg/min. Sedation: 5-50 mcg/kg/min' },
+    { name:'Remifentanil',           conc:'50 mcg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:2,    infUnit:'mcg/kg/min',    notes:'TIVA/analgosedation. Context-sensitive half-life ~3 min. No bolus recommended' },
+    { name:'Thiopentone',            conc:'25 mg/mL',     bolusLo:3,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Induction. Reduce in compromised patients. ICP reduction' },
   ],
   'Neuromuscular': [
-    { name:'Suxamethonium',          conc:'50 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'RSI. IM 4 mg/kg if no IV. Contraindications: hyperkalaemia risk, myopathies' },
-    { name:'Rocuronium',             conc:'10 mg/mL',      bolusLo:0.6, bolusHi:1.2,  bolusUnit:'mg/kg',      infLo:5,    infHi:10,   infUnit:'mcg/kg/min',    notes:'0.6 mg/kg intubation, 1.2 mg/kg RSI. Reversed by sugammadex' },
     { name:'Atracurium',             conc:'2 mg/mL',      bolusLo:0.3,  bolusHi:0.5,  bolusUnit:'mg/kg',      infLo:5,    infHi:10,   infUnit:'mcg/kg/min',    notes:'Hoffman elimination - preferred in hepatic/renal failure' },
-    { name:'Vecuronium',             conc:'1 mg/mL',      bolusLo:0.08, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.8,  infHi:1.4,  infUnit:'mcg/kg/min',    notes:'' },
     { name:'Cisatracurium',          conc:'2 mg/mL',      bolusLo:0.15, bolusHi:0.2,  bolusUnit:'mg/kg',      infLo:0.5,  infHi:3,    infUnit:'mcg/kg/min',    notes:'Hoffman elimination. Preferred in ICU/multi-organ failure - fewer histamine effects than atracurium' },
+    { name:'Rocuronium',             conc:'10 mg/mL',      bolusLo:0.6, bolusHi:1.2,  bolusUnit:'mg/kg',      infLo:5,    infHi:10,   infUnit:'mcg/kg/min',    notes:'0.6 mg/kg intubation, 1.2 mg/kg RSI. Reversed by sugammadex' },
+    { name:'Suxamethonium',          conc:'50 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'RSI. IM 4 mg/kg if no IV. Contraindications: hyperkalaemia risk, myopathies' },
+    { name:'Vecuronium',             conc:'1 mg/mL',      bolusLo:0.08, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.8,  infHi:1.4,  infUnit:'mcg/kg/min',    notes:'' },
   ],
   'Haematology': [
-    { name:'Tranexamic acid',        conc:'100 mg/mL',    bolusLo:15,   bolusHi:30,   bolusUnit:'mg/kg',      infLo:1,    infHi:5,    infUnit:'mg/kg/hr',      notes:'Load 1 g over 10 min then 1 g over 8 hr (CRASH-2). Major haemorrhage, obstetrics, cardiac surgery' },
-    { name:'Heparin',                conc:'',             bolusLo:50,   bolusHi:100,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'' },
-    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given. Max 50 mg. Infuse slowly - risk of hypotension/bronchospasm' },
-    { name:'Vitamin K',              conc:'10 mg/mL',     bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Warfarin reversal. Onset 6-12 hr IV. Give slowly over 20-60 min' },
-    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
-    { name:'Fresh frozen plasma',    conc:'',             bolusLo:10,   bolusHi:15,   bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Coagulopathy, massive transfusion. Takes 20-30 min to thaw' },
     { name:'Cryoprecipitate',        conc:'',             bolusLo:0.1,  bolusHi:0.2,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Fibrinogen replacement. 1 unit per 5-10 kg. Target fibrinogen >1.5 g/L' },
-    { name:'Fibrinogen concentrate', conc:'',             bolusLo:70,   bolusHi:70,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Reconstitute and give over 5 min. Target fibrinogen >2 g/L in major haemorrhage' },
     { name:'Desmopressin',           conc:'',             bolusLo:0.3,  bolusHi:0.3,  bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Haemophilia A, vWD, platelet dysfunction. Infuse over 20-30 min' },
+    { name:'Fibrinogen concentrate', conc:'',             bolusLo:70,   bolusHi:70,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Reconstitute and give over 5 min. Target fibrinogen >2 g/L in major haemorrhage' },
+    { name:'Fresh frozen plasma',    conc:'',             bolusLo:10,   bolusHi:15,   bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Coagulopathy, massive transfusion. Takes 20-30 min to thaw' },
+    { name:'Heparin',                conc:'',             bolusLo:50,   bolusHi:100,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'' },
+    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
+    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given. Max 50 mg. Infuse slowly - risk of hypotension/bronchospasm' },
+    { name:'Tranexamic acid',        conc:'100 mg/mL',    bolusLo:15,   bolusHi:30,   bolusUnit:'mg/kg',      infLo:1,    infHi:5,    infUnit:'mg/kg/hr',      maxDose:2000, notes:'Max 2 g load. Load 1 g over 10 min then 1 g over 8 hr (CRASH-2). Major haemorrhage, obstetrics, cardiac surgery' },
+    { name:'Vitamin K',              conc:'10 mg/mL',     bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Warfarin reversal. Onset 6-12 hr IV. Give slowly over 20-60 min' },
   ],
   'Bronchodilators': [
-    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Slow IV. Neb: 2.5-5 mg' },
     { name:'Aminophylline',          conc:'',             bolusLo:10,   bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Loading dose over 20-30 min. Reduce if already on theophylline' },
+    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Slow IV. Neb: 2.5-5 mg' },
   ],
   'Endocrine & metabolic': [
-    { name:'Insulin (infusion)',      conc:'1 unit/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:null, infHi:null, infUnit:'',              notes:'Rate per local DKA/hyperglycaemia protocol. Typically 0.05-0.1 units/kg/hr' },
-    { name:'Calcium gluconate',       conc:'100 mg/mL',   bolusLo:0.1,  bolusHi:0.2,  bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Hyperkalaemia, hypocalcaemia. Give slowly over 5-10 min. 10-20 mL of 10% solution in adults' },
-    { name:'Calcium chloride',        conc:'100 mg/mL',   bolusLo:5,    bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'3x more elemental calcium than gluconate. Central line preferred. Cardiac arrest, severe hypocalcaemia' },
-    { name:'Sodium bicarbonate 8.4%', conc:'1 mmol/mL',  bolusLo:1,    bolusHi:2,    bolusUnit:'mmol/kg',    infLo:null, infHi:null, infUnit:'',              notes:'Severe metabolic acidosis, hyperkalaemia. Give slowly. Can worsen intracellular acidosis' },
+    { name:'Calcium chloride',        conc:'100 mg/mL',   bolusLo:5,    bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              maxDose:1000, notes:'Max 1 g. 3x more elemental calcium than gluconate. Central line preferred. Cardiac arrest, severe hypocalcaemia' },
+    { name:'Calcium gluconate',       conc:'100 mg/mL',   bolusLo:0.1,  bolusHi:0.2,  bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              maxDose:10,   notes:'Max 10 mL. Hyperkalaemia, hypocalcaemia. Give slowly over 5-10 min. 10-20 mL of 10% solution in adults' },
     { name:'Dextrose 50%',            conc:'500 mg/mL',   bolusLo:1,    bolusHi:2,    bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Hypoglycaemia. 50 mL IV in adults. Dilute to 10% for children' },
+    { name:'Glucagon',               conc:'',             bolusLo:40,   bolusHi:40,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              maxDose:1000, notes:'Max 1 mg. Hypoglycaemia, beta-blocker overdose' },
     { name:'Hydrocortisone',         conc:'',             bolusLo:2,    bolusHi:2,    bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Adrenal insufficiency, anaphylaxis, physiological replacement' },
-    { name:'Glucagon',               conc:'',             bolusLo:40,   bolusHi:40,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Max 1 mg. Hypoglycaemia, beta-blocker overdose' },
+    { name:'Hypertonic saline (3%)', conc:'30 mg/mL',     bolusLo:2,    bolusHi:5,    bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Hyponatraemia, raised ICP' },
+    { name:'Insulin (infusion)',      conc:'1 unit/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:null, infHi:null, infUnit:'',              notes:'Rate per local DKA/hyperglycaemia protocol. Typically 0.05-0.1 units/kg/hr' },
     { name:'Octreotide',             conc:'',             bolusLo:10,   bolusHi:20,   bolusUnit:'mcg (fixed)',infLo:1,    infHi:1,    infUnit:'mcg/kg/hr',     notes:'GI haemorrhage, carcinoid crisis' },
-    { name:'Hypertonic saline (3%)', conc:'30 mg/mL',     bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:2,    infHi:5,    infUnit:'mL/kg',         notes:'Hyponatraemia, raised ICP. Max rate 1 mmol/L/hr sodium correction' },
+    { name:'Sodium bicarbonate 8.4%', conc:'1 mmol/mL',  bolusLo:1,    bolusHi:2,    bolusUnit:'mmol/kg',    infLo:null, infHi:null, infUnit:'',              notes:'Severe metabolic acidosis, hyperkalaemia. Give slowly. Can worsen intracellular acidosis' },
   ],
   'Antibiotics': 'abx',
 };
@@ -2020,21 +2030,20 @@ const DRUG_DOSES = Object.entries(DRUG_CATS)
   .flatMap(([k, v]) => v);
 
 const ABX_DATA = [
-  // Surgical prophylaxis
-  { name:'Cefazolin',              dose:'2 g',          doseWt:'30 mg/kg',  route:'IV', freq:'Single dose (repeat 4-hrly if >4 hr surgery)', conc:'20 mg/mL', notes:'Max 3 g. First-line surgical prophylaxis. Give 30-60 min pre-incision' },
-  { name:'Gentamicin',             dose:'',             doseWt:'5 mg/kg',   route:'IV', freq:'Single dose',                                    conc:'5 mg/mL',  notes:'Max 320 mg. Use IBW if obese. Avoid if renal impairment' },
-  { name:'Metronidazole',          dose:'500 mg',       doseWt:'',          route:'IV', freq:'Single dose (repeat 8-hrly if continued)',        conc:'5 mg/mL',  notes:'Colorectal, GI, gynaecological prophylaxis' },
-  { name:'Vancomycin',             dose:'',             doseWt:'25 mg/kg',  route:'IV', freq:'Single dose',                                    conc:'5 mg/mL',  notes:'Max 3 g. Infuse over >=60 min (>=90 min if >2 g). MRSA risk or penicillin allergy' },
-  { name:'Flucloxacillin',         dose:'1-2 g',        doseWt:'',          route:'IV', freq:'Single dose',                                    conc:'50 mg/mL', notes:'Cardiac, orthopaedic, clean procedures' },
-  { name:'Benzylpenicillin',       dose:'1.2 g',        doseWt:'',          route:'IV', freq:'Single dose',                                    conc:'600 mg/mL',notes:'Give slowly over 15-30 min' },
-  // Empirical treatment
   { name:'Amoxicillin-clavulanate',dose:'1.2 g',        doseWt:'',          route:'IV', freq:'8-hourly',                                       conc:'10 mg/mL', notes:'Moderate infections. Avoid if penicillin allergy' },
-  { name:'Piperacillin-tazobactam',dose:'4.5 g',        doseWt:'',          route:'IV', freq:'6-8-hourly (or 4-hrly infusion in severe sepsis)',conc:'45 mg/mL', notes:'Broad gram-negative/anaerobe cover. Severe sepsis, peritonitis, pneumonia' },
-  { name:'Ceftriaxone',            dose:'',             doseWt:'50 mg/kg',  route:'IV', freq:'Once daily',                                     conc:'40 mg/mL', notes:'Max 2-4 g. Community-acquired pneumonia, biliary, meningitis' },
-  { name:'Meropenem',              dose:'',             doseWt:'20 mg/kg',  route:'IV', freq:'8-hourly',                                       conc:'10 mg/mL', notes:'Max 2 g/dose (6 g/day). Severe sepsis, resistant organisms, empirical ICU' },
-  { name:'Clindamycin',            dose:'',             doseWt:'10 mg/kg',  route:'IV', freq:'6-8-hourly',                                     conc:'12 mg/mL', notes:'Max 900 mg/dose. Skin/soft tissue, penicillin allergy, anaerobes. Infuse over 20-60 min' },
+  { name:'Benzylpenicillin',       dose:'1.2 g',        doseWt:'',          route:'IV', freq:'Single dose',                                    conc:'600 mg/mL',notes:'Give slowly over 15-30 min' },
+  { name:'Cefazolin',              dose:'2-3 g',        doseWt:'30 mg/kg',  route:'IV', freq:'Single dose (repeat 4-hrly if >4 hr surgery)', conc:'20 mg/mL', maxDoseFn:'cefazolin', notes:'Max 2 g (<100 kg) or 3 g (≥100 kg). First-line surgical prophylaxis. Give 30-60 min pre-incision' },
+  { name:'Ceftriaxone',            dose:'',             doseWt:'50 mg/kg',  route:'IV', freq:'Once daily',                                     conc:'40 mg/mL', maxDose:4000, notes:'Max 4 g. Community-acquired pneumonia, biliary, meningitis' },
+  { name:'Cefuroxime',             dose:'1.5 g',        doseWt:'30 mg/kg',  route:'IV', freq:'Single dose (repeat 4-hrly if >4 hr surgery)', conc:'15 mg/mL', maxDose:1500, notes:'Max 1500 mg. Alternative to cefazolin. Give 30-60 min pre-incision' },
   { name:'Ciprofloxacin',          dose:'400 mg',       doseWt:'',          route:'IV', freq:'8-12-hourly',                                    conc:'2 mg/mL',  notes:'Gram-negative, urinary, respiratory. Infuse over 60 min. QTc risk' },
-  { name:'Fluconazole',            dose:'',             doseWt:'6 mg/kg',   route:'IV', freq:'Once daily',                                     conc:'2 mg/mL',  notes:'Max 400 mg. Candida prophylaxis/treatment. Infuse over 60 min. Check interactions' },
+  { name:'Clindamycin',            dose:'',             doseWt:'10 mg/kg',  route:'IV', freq:'6-8-hourly',                                     conc:'12 mg/mL', maxDose:900, notes:'Max 900 mg/dose. Skin/soft tissue, penicillin allergy, anaerobes. Infuse over 20-60 min' },
+  { name:'Flucloxacillin',         dose:'1-2 g',        doseWt:'',          route:'IV', freq:'Single dose',                                    conc:'50 mg/mL', notes:'Cardiac, orthopaedic, clean procedures' },
+  { name:'Fluconazole',            dose:'',             doseWt:'6 mg/kg',   route:'IV', freq:'Once daily',                                     conc:'2 mg/mL',  maxDose:400, notes:'Max 400 mg. Candida prophylaxis/treatment. Infuse over 60 min. Check interactions' },
+  { name:'Gentamicin',             dose:'',             doseWt:'5 mg/kg',   route:'IV', freq:'Single dose',                                    conc:'5 mg/mL',  maxDose:320, notes:'Max 320 mg. Use IBW if obese. Avoid if renal impairment' },
+  { name:'Meropenem',              dose:'',             doseWt:'20 mg/kg',  route:'IV', freq:'8-hourly',                                       conc:'10 mg/mL', maxDose:2000, notes:'Max 2 g/dose. Severe sepsis, resistant organisms, empirical ICU' },
+  { name:'Metronidazole',          dose:'500 mg',       doseWt:'7.5 mg/kg', route:'IV', freq:'Single dose (repeat 8-hrly if continued)',        conc:'5 mg/mL',  maxDose:500, notes:'Max 500 mg. Colorectal, GI, gynaecological prophylaxis' },
+  { name:'Piperacillin-tazobactam',dose:'4.5 g',        doseWt:'',          route:'IV', freq:'6-8-hourly (or 4-hrly infusion in severe sepsis)',conc:'45 mg/mL', notes:'Broad gram-negative/anaerobe cover. Severe sepsis, peritonitis, pneumonia' },
+  { name:'Vancomycin',             dose:'',             doseWt:'25 mg/kg',  route:'IV', freq:'Single dose',                                    conc:'5 mg/mL',  maxDose:3000, notes:'Max 3 g. Infuse over ≥60 min (≥90 min if >2 g). MRSA risk or penicillin allergy' },
 ];
 
 let ddCatKey = Object.keys(DRUG_CATS)[0];
@@ -2060,25 +2069,33 @@ function setDDCat(k, el) {
   }
 }
 
-function ddFmtRange(lo, hi, unit, wt) {
+function ddFmtRange(lo, hi, unit, wt, maxDose) {
   if (lo === null) return { range: '-', calc: '-' };
   const isFixed = unit.includes('fixed') || unit === 'g/hr' || unit === 'mL/kg' || unit === 'mcg/kg/hr' || unit === 'units/kg/hr' || unit === 'units/kg';
   const dispUnit = unit.replace(' (fixed)', '').replace('(fixed)', '');
   const range = lo === hi ? lo + ' ' + dispUnit : lo + '-' + hi + ' ' + dispUnit;
   let calc = '-';
   if (wt) {
+    function capDose(v) { return (maxDose != null) ? Math.min(v, maxDose) : v; }
+    function capStr(v, unit) { return fmtN(capDose(v)) + (capDose(v) < v ? '*' : '') + ' ' + unit; }
     if (!isFixed) {
       const cUnit = dispUnit.replace('/kg', '');
-      const cLo = fmtN(lo * wt), cHi = fmtN(hi * wt);
+      const rawLo = lo * wt, rawHi = hi * wt;
+      const cLo = fmtN(capDose(rawLo)) + (capDose(rawLo) < rawLo ? '*' : '');
+      const cHi = fmtN(capDose(rawHi)) + (capDose(rawHi) < rawHi ? '*' : '');
       calc = cLo === cHi ? cLo + ' ' + cUnit : cLo + '-' + cHi + ' ' + cUnit;
     } else if (unit === 'units/kg/hr') {
       const cLo = fmtN(lo * wt), cHi = fmtN(hi * wt);
       calc = cLo === cHi ? cLo + ' units/hr' : cLo + '-' + cHi + ' units/hr';
     } else if (unit === 'units/kg') {
-      const cLo = fmtN(lo * wt), cHi = fmtN(hi * wt);
+      const rawLo = lo * wt, rawHi = hi * wt;
+      const cLo = fmtN(capDose(rawLo)) + (capDose(rawLo) < rawLo ? '*' : '');
+      const cHi = fmtN(capDose(rawHi)) + (capDose(rawHi) < rawHi ? '*' : '');
       calc = cLo === cHi ? cLo + ' units' : cLo + '-' + cHi + ' units';
     } else if (unit === 'mL/kg') {
-      const cLo = fmtN(lo * wt), cHi = fmtN(hi * wt);
+      const rawLo = lo * wt, rawHi = hi * wt;
+      const cLo = fmtN(capDose(rawLo)) + (capDose(rawLo) < rawLo ? '*' : '');
+      const cHi = fmtN(capDose(rawHi)) + (capDose(rawHi) < rawHi ? '*' : '');
       calc = cLo === cHi ? cLo + ' mL' : cLo + '-' + cHi + ' mL';
     } else if (unit === 'mcg/kg/hr') {
       const cLo = fmtN(lo * wt), cHi = fmtN(hi * wt);
@@ -2099,7 +2116,7 @@ function renderDrugTable(data) {
   }
   tbody.innerHTML = data.map((d, i) => {
     const bg = i % 2 === 0 ? '' : 'background:var(--bg4)';
-    const bolus = ddFmtRange(d.bolusLo, d.bolusHi, d.bolusUnit, wt);
+    const bolus = ddFmtRange(d.bolusLo, d.bolusHi, d.bolusUnit, wt, d.maxDose != null ? d.maxDose : null);
     const inf   = ddFmtRange(d.infLo,   d.infHi,   d.infUnit,   null);
     function tdDim(val) {
       const c = (val && val !== '-') ? 'var(--blue)' : 'var(--text3)';
@@ -2121,6 +2138,13 @@ function renderDrugTable(data) {
       ${tdGrey(d.notes)}
     </tr>`;
   }).join('');
+  // Add max dose footnote if any drug has a cap
+  const hasCap = data.some(d => d.maxDose != null);
+  if (hasCap && wt) {
+    const note = document.createElement('tr');
+    note.innerHTML = '<td colspan="6" style="padding:4px 12px;font-size:10px;color:var(--text3)">* Capped at maximum dose</td>';
+    tbody.appendChild(note);
+  }
 }
 
 function renderAbxTable(data) {
@@ -2142,13 +2166,17 @@ function renderAbxTable(data) {
     const bg = i % 2 === 0 ? '' : 'background:var(--bg4)';
     // Calculated dose from weight-based dose string
     let calcDose = '-';
+    let wasCapped = false;
     if (wt && d.doseWt) {
       const m = d.doseWt.match(/([\d.]+)\s*(mg|g|mcg)\/kg/);
       if (m) {
         const num = parseFloat(m[1]);
         const unit = m[2];
-        const raw = num * wt;
-        calcDose = fmtN(unit === 'g' ? raw : raw) + ' ' + unit;
+        let rawMg = num * wt * (unit === 'g' ? 1000 : 1);
+        let maxMg = d.maxDoseFn === 'cefazolin' ? (wt >= 100 ? 3000 : 2000) : (d.maxDose != null ? d.maxDose : null);
+        if (maxMg != null && rawMg > maxMg) { rawMg = maxMg; wasCapped = true; }
+        const dispVal = unit === 'g' ? rawMg / 1000 : rawMg;
+        calcDose = fmtN(dispVal) + ' ' + unit + (wasCapped ? '*' : '');
       }
     }
     const displayDose = d.doseWt ? d.doseWt : (d.dose || '-');
@@ -2161,13 +2189,28 @@ function renderAbxTable(data) {
     return `<tr style="${bg}">
       <td style="padding:6px 12px;font-size:13px;font-weight:500;color:var(--text);border-bottom:1px solid var(--bg4)">${d.name}</td>
       ${td(displayDose, 'var(--text)')}
-      ${td(calcDose, calcDose !== '-' ? 'var(--blue)' : 'var(--text3)')}
+      ${td(calcDose, calcDose === '-' ? 'var(--text3)' : wasCapped ? 'var(--amber)' : 'var(--blue)')}
       ${td(d.route, 'var(--text2)')}
       ${td(d.freq, 'var(--text2)')}
       ${td(d.conc, 'var(--text3)')}
       ${tdNote(d.notes)}
     </tr>`;
   }).join('');
+  if (wt) {
+    const anyAbxCapped = data.some(d => {
+      if (!d.doseWt) return false;
+      const m2 = d.doseWt.match(/([\d.]+)\s*(mg|g|mcg)\/kg/);
+      if (!m2) return false;
+      const rawMg2 = parseFloat(m2[1]) * wt * (m2[2] === 'g' ? 1000 : 1);
+      const maxMg2 = d.maxDoseFn === 'cefazolin' ? (wt >= 100 ? 3000 : 2000) : (d.maxDose != null ? d.maxDose : null);
+      return maxMg2 != null && rawMg2 > maxMg2;
+    });
+    if (anyAbxCapped) {
+      const noteRow = document.createElement('tr');
+      noteRow.innerHTML = '<td colspan="7" style="padding:4px 12px;font-size:10px;color:var(--text3)">* Capped at maximum dose</td>';
+      document.getElementById('drug-tbody').appendChild(noteRow);
+    }
+  }
 }
 
 function restoreDrugHeaders() {
