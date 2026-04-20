@@ -399,6 +399,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <a class="lcard" href="#" onclick="tribOpen()" id="home-trib-link"><span class="lar">↗</span><div class="lct">Tribulator</div><div class="lcs">PubMed search &amp; paper library</div></a>
     <a class="lcard" href="#" onclick="chartedOpen()"><span class="lar">↗</span><div class="lct">Pre-assessment</div><div class="lcs">Opens Charted in a new tab</div></a>
     <a class="lcard" href="#" onclick="gasmanOpen()"><span class="lar">↗</span><div class="lct">Gasman Pulse</div><div class="lcs">Clinical research companion</div></a>
+    <a class="lcard" href="#" onclick="dreamsOpen()"><span class="lar">↗</span><div class="lct">Dreams Lab</div><div class="lcs">Anaesthesia simulator</div></a>
   </div></div>
 </div>
 
@@ -1372,7 +1373,9 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card" style="margin-bottom:12px">
     <div class="slabel">Patient</div>
     <div class="row" style="align-items:flex-end;gap:12px">
-      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="filterDrugs()"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="filterDrugs();calcBodyWeights()"></div>
+      <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="calcBodyWeights()"></div>
+      <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span></div>
       <div class="field"><label>Search all drugs</label><input type="text" id="drug-search" placeholder="Filter across all categories…" style="width:240px" oninput="filterDrugs()"></div>
     </div>
   </div>
@@ -1782,14 +1785,14 @@ const PD_CATS = {
     { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], note: 'Max 4 mg; >1 month' },
   ],
   'Emergency': [
-    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: 'Rapid IV; max 6 mg 1st dose' },
+    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: 'Rapid IV; max 6 mg 1st dose' },
     { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }, { c: '1:1000 (1 mg/mL)', mgml: 1 }], note: 'Anaphylaxis: 0.01 mg/kg IM. Max 0.5 mg' },
     { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], note: 'IV/IO. Max 1 mg' },
     { n: 'Amiodarone',              doseStr: '5',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], maxDose: 300, note: 'Pulseless VT/VF. Max 300 mg' },
-    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 600  }], note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
-    { n: 'Ephedrine',               doseStr: '0.25', unit: 'mg/kg',  route: 'im',   concs: [{ c: '6 mg/mL',   mgml: 3   }], note: '' },
+    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 0.6  }], note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
+    { n: 'Ephedrine',               doseStr: '0.25', unit: 'mg/kg',  route: 'im',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: '' },
     { n: 'Hydrocortisone',          doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: 'Anaphylaxis, adrenal crisis' },
-    { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Titrate to effect' },
+    { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.5 mg/mL',  mgml: 0.5 }], note: 'Titrate to effect' },
     { n: 'Salbutamol',              doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Slow IV over 5-10 min' },
   ],
   'Fluids': [
@@ -2454,6 +2457,38 @@ function restoreDrugHeaders() {
     <th style="padding:7px 12px;font-size:10px;font-weight:500;color:var(--text2);text-align:right;border-bottom:1px solid var(--border);width:22%">Notes</th>`;
 }
 
+/* =======================================
+   BODY WEIGHT CALCULATORS
+======================================= */
+function calcBodyWeights() {
+  var wt  = parseFloat(document.getElementById('dd-wt').value);
+  var ht  = parseFloat(document.getElementById('dd-ht').value);
+  var disp = document.getElementById('dd-bw-display');
+  if (!wt || !ht) { disp.style.display = 'none'; return; }
+  function rnd(v) { return Math.round(v); }
+  // Devine formula (height in cm, convert to inches over 60)
+  var htIn = (ht - 152.4) / 2.54;
+  var ibwM = Math.max(0, rnd(50 + 2.3 * htIn));
+  var ibwF = Math.max(0, rnd(45.5 + 2.3 * htIn));
+  // LBW: Janmahasatian formula
+  var bmi = wt / ((ht / 100) * (ht / 100));
+  var lbwM = rnd((9270 * wt) / (6680 + 216 * bmi));
+  var lbwF = rnd((9270 * wt) / (8780 + 244 * bmi));
+  // ABW: IBW + 0.4*(TBW - IBW)
+  var ibwMnum = Math.max(0, 50 + 2.3 * htIn);
+  var ibwFnum = Math.max(0, 45.5 + 2.3 * htIn);
+  var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4 * (wt - ibwMnum)) : ibwM;
+  var abwF = wt > ibwFnum ? rnd(ibwFnum + 0.4 * (wt - ibwFnum)) : ibwF;
+  document.getElementById('dd-ibw').textContent = ibwM + '/' + ibwF + ' kg (M/F)';
+  document.getElementById('dd-lbw').textContent = lbwM + '/' + lbwF + ' kg (M/F)';
+  document.getElementById('dd-abw').textContent = abwM + '/' + abwF + ' kg (M/F)';
+  disp.style.display = 'flex';
+  disp.style.alignItems = 'center';
+  disp.style.gap = '4px';
+  disp.style.flexWrap = 'wrap';
+}
+
+
 function filterDrugs() {
   const q = (document.getElementById('drug-search').value || '').toLowerCase().trim();
   if (q) {
@@ -2627,6 +2662,15 @@ function gasmanOpen() {
   }
 }
 
+
+function dreamsOpen() {
+  var pw = prompt('Enter password to access Dreams Lab:');
+  if (pw === 'default') {
+    window.open('https://script.google.com/a/macros/kieran101.com/s/AKfycbwzqyMYW91l_ZP-crAGGIATG8taqlf3k4QJxQC047V82_BlG5yB_EQicYB2Lkf62LtZ/exec', '_blank');
+  } else if (pw !== null) {
+    alert('Incorrect password.');
+  }
+}
 
 function chartedOpen() {
   var pw = prompt('Enter password:');
