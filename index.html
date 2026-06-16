@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Theatre Toolkit - Wellington Regional Hospital</title>
+<title>Hypnos &mdash; Theatre Toolkit</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -502,14 +502,14 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 ══════════════════════════════════════ -->
 <div class="page active" id="tab-home">
   <div class="home-hero">
-    <div class="home-hero-logo" onclick="hypnosClick()" title="Hypnos">
+    <div class="home-hero-logo" onclick="window.open('https://hypnos.one','_blank')" title="Visit hypnos.one">
       <svg class="home-hero-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
       </svg>
       <div class="home-h1">Hypnos</div>
     </div>
     <div class="home-sub">Theatre toolkit</div>
-    <div class="home-clock" id="home-clock">00:00:00</div>
+    <div class="home-clock" id="home-clock" onclick="hypnosClick()" title="&#128" style="cursor:pointer">00:00:00</div>
     <div class="home-timer-wrap">
       <span style="font-size:11px;color:var(--text3)">Session</span>
       <span class="home-timer" id="home-timer">00:00</span>
