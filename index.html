@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hypnos &mdash; Theatre Toolkit</title>
+<title>Hypnos — Vantage</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -26,6 +26,9 @@ button{font-family:inherit;cursor:pointer;font-size:13px}
 .hlogo-icon{width:26px;height:26px;flex-shrink:0}
 .hname{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.02em}
 .htag{font-size:11px;color:var(--text3);margin-left:6px;font-weight:400;padding-bottom:1px}
+.hmed{font-size:9px;color:var(--blue);letter-spacing:0.12em;font-weight:600;text-transform:uppercase;margin-top:1px}
+.hdivider{color:var(--border2);font-size:20px;margin:0 10px;align-self:center;font-weight:300;line-height:1}
+.hprod{font-size:17px;font-weight:600;color:var(--text);letter-spacing:-0.01em}
 .nav-primary{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 18px;gap:2px;overflow-x:auto}
 .nav-tab{padding:11px 15px;font-size:13px;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-weight:400;transition:color 0.15s}
 .nav-tab:hover{color:var(--text2)}
@@ -184,7 +187,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 
   /* Header */
   .htag { display: none; }
+  .hmed { display: none; }
+  .hdivider { margin: 0 7px; font-size: 16px; }
   .hname { font-size: 15px; }
+  .hprod { font-size: 15px; }
   .hlogo-icon { width: 22px; height: 22px; }
 
   /* Nav tabs — bigger touch targets */
@@ -252,8 +258,12 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <svg class="hlogo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
     </svg>
-    <span class="hname">Hypnos</span>
-    <span class="htag">Theatre toolkit</span>
+    <div style="display:flex;flex-direction:column;line-height:1.1">
+      <span class="hname">Hypnos</span>
+      <span class="hmed">MEDICAL</span>
+    </div>
+    <span class="hdivider">|</span>
+    <span class="hprod">Vantage</span>
   </a>
 </div>
 
@@ -509,7 +519,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </svg>
       <div class="home-h1">Hypnos</div>
     </div>
-    <div class="home-sub">Theatre toolkit</div>
+    <div class="home-sub">Vantage</div>
     <div class="home-clock" id="home-clock" onclick="hypnosClick()" title="&#128" style="cursor:pointer">00:00:00</div>
     <div class="home-timer-wrap">
       <span style="font-size:11px;color:var(--text3)">Session</span>
@@ -569,10 +579,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card" style="margin-top:20px;border-color:var(--border2);background:var(--bg2)">
     <div class="slabel" style="margin-bottom:6px">Disclaimer &amp; Licence</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.7">
-      <strong>Clinical use.</strong> Hypnos Theatre Toolkit is a reference aid only. All drug doses, calculations, and clinical information must be independently verified against current local guidelines, formulary, and product information before use in patient care. The author accepts no responsibility for clinical decisions made in reliance on this tool.
+      <strong>Clinical use.</strong> Hypnos Vantage is a reference aid only. All drug doses, calculations, and clinical information must be independently verified against current local guidelines, formulary, and product information before use in patient care. The author accepts no responsibility for clinical decisions made in reliance on this tool.
     </div>
     <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-top:6px">
-      <strong>Licence.</strong> &copy; 2025 <span style="color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:2px" onclick="document.getElementById('modal-contact').classList.add('open')">Kieran Gillick</span>. Licensed under
+      <strong>Licence.</strong> &copy; 2025 Hypnos Medical. Licensed under
       <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" style="color:var(--blue)">CC BY-NC 4.0</a>
       &mdash; free to use, share, and adapt with attribution. Commercial use is prohibited without explicit permission.
     </div>
@@ -2492,7 +2502,7 @@ async function pmSearch() {
 
 async function savePm(pmid, title, authors, journal, year, btn) {
   btn.disabled = true; btn.textContent = 'Saving...';
-  const params = new URLSearchParams({ action:'addPaper', pmid, title, authors, journal, year, type:'PubMed', source:'Theatre Toolkit' });
+  const params = new URLSearchParams({ action:'addPaper', pmid, title, authors, journal, year, type:'PubMed', source:'Vantage' });
   tribFire(params);
   setTimeout(() => { btn.textContent = 'Saved'; btn.style.color = 'var(--green)'; }, 1500);
 }
@@ -2551,7 +2561,7 @@ async function saveAddPaper() {
     type:    document.getElementById('ap-type').value,
     notes:   document.getElementById('ap-notes').value,
     tags:    document.getElementById('ap-tags').value,
-    source:  'Theatre Toolkit - Add Paper',
+    source:  'Vantage - Add Paper',
   });
   tribFire(params);
   setTimeout(() => {
@@ -2581,7 +2591,7 @@ async function submitManual() {
     type:    document.getElementById('m-type').value,
     notes:   document.getElementById('m-notes').value,
     tags:    document.getElementById('m-tags').value,
-    source:  'Theatre Toolkit - Manual',
+    source:  'Vantage - Manual',
   });
   tribFire(params);
   setTimeout(() => {
