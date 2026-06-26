@@ -254,7 +254,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 
 <!-- HEADER -->
 <div class="hdr">
-  <a class="hlogo" href="https://hypnos.one" target="_blank" style="text-decoration:none">
+  <a class="hlogo" href="https://hypnos.one" target="_self" style="text-decoration:none">
     <svg class="hlogo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
     </svg>
@@ -271,6 +271,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 <div class="nav-primary">
   <div class="nav-tab active" onclick="showGroup('home',this)">Home</div>
   <div class="nav-tab" onclick="showGroup('drugs',this)">Drugs</div>
+  <div class="nav-tab" onclick="showGroup('calculators',this)">Calculators</div>
   <div class="nav-tab" onclick="showGroup('regional',this)">Regional</div>
   <div class="nav-tab" onclick="showGroup('pocus',this)">POCUS</div>
   <div class="nav-tab" onclick="showGroup('reference',this)">Reference</div>
@@ -279,16 +280,17 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 </div>
 <div class="nav-secondary" id="sub-drugs">
   <div class="sub-tab active" onclick="showDrugsTab('drugs',this)">Drug Dosing</div>
-  <div class="sub-tab" onclick="showDrugsTab('la',this)">LA Calculator</div>
-  <div class="sub-tab" onclick="showDrugsTab('opioid',this)">Opioid Conversion</div>
   <div class="sub-tab" onclick="showDrugsTab('anticoag',this)">Anticoagulants</div>
   <div class="sub-tab" onclick="showDrugsTab('paed',this)">Paediatrics</div>
-  <div class="sub-tab" onclick="showDrugsTab('omedd',this)">oMEDD</div>
+</div>
+<div class="nav-secondary" id="sub-calc">
+  <div class="sub-tab active" onclick="showCalcTab('la',this)">LA Calculator</div>
+  <div class="sub-tab" onclick="showCalcTab('opioid',this)">Opioid Conversion</div>
+  <div class="sub-tab" onclick="showCalcTab('omedd',this)">oMEDD</div>
 </div>
 <div class="nav-secondary" id="sub-ref">
   <div class="sub-tab active" onclick="showRefTab('consent',this)">Consent</div>
   <div class="sub-tab" onclick="showRefTab('wellbeing',this)">Wellbeing</div>
-  <div class="sub-tab" onclick="showRefTab('protocols',this)">Notes</div>
 </div>
 
 <!-- ══════════════════════════════════════
@@ -513,7 +515,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 ══════════════════════════════════════ -->
 <div class="page active" id="tab-home">
   <div class="home-hero">
-    <div class="home-hero-logo" onclick="window.open('https://hypnos.one','_blank')" title="Visit hypnos.one">
+    <div class="home-hero-logo" onclick="window.location.href='https://hypnos.one'" title="Visit hypnos.one">
       <svg class="home-hero-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
       </svg>
@@ -597,6 +599,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <a class="lcard" href="https://www.mims.co.nz" target="_blank"><span class="lar">↗</span><div class="lct">MIMS Online</div><div class="lcs">Drug monographs &amp; interactions</div></a>
   </div></div>
   <div class="ls"><div class="lst">Guidelines</div><div class="lgrid">
+    <a class="lcard" href="https://www.openevidence.com/" target="_blank"><span class="lar">↗</span><div class="lct">Open Evidence</div><div class="lcs">AI-powered clinical evidence search</div></a>
     <a class="lcard" href="https://www.anzca.edu.au/resources/professional-documents" target="_blank"><span class="lar">↗</span><div class="lct">ANZCA professional documents</div><div class="lcs">Standards, guidelines &amp; statements</div></a>
         <a class="lcard" href="https://www.das.uk.com/guidelines" target="_blank"><span class="lar">↗</span><div class="lct">DAS guidelines</div><div class="lcs">Difficult Airway Society algorithms</div></a>
     <a class="lcard" href="https://www.sobauk.co.uk/guidelines-1" target="_blank"><span class="lar">&#x2197;</span><div class="lct">SOBA guidelines</div><div class="lcs">Obesity &amp; bariatric anaesthesia</div></a>
@@ -605,10 +608,12 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <a class="lcard" href="https://makatimedical.net/MMCDrugFormulary/content/files/The_Renal_Drug_Handbook_The_Ultimate.pdf" target="_blank"><span class="lar">&#x2197;</span><div class="lct">Renal Drug Database</div><div class="lcs">Drug dosing in renal impairment</div></a>
     <a class="lcard" href="https://www.ascargroup.com/" target="_blank"><span class="lar">&#x2197;</span><div class="lct">ASCAR</div><div class="lcs">Anaesthesia cognitive aids &amp; crisis resources</div></a>
     <a class="lcard" href="https://www.anzca.edu.au/safety-and-advocacy/advocacy/college-publications/acute-pain-management-scientific-evidence" target="_blank"><span class="lar">↗</span><div class="lct">ANZCA Acute Pain Guidelines</div><div class="lcs">Acute Pain Management: Scientific Evidence</div></a>
+    <a class="lcard" href="https://professional.heart.org/en/guidelines-statements" target="_blank"><span class="lar">↗</span><div class="lct">AHA Cardiac Guidelines</div><div class="lcs">American Heart Association guidelines &amp; statements</div></a>
   </div></div>
   <div class="ls"><div class="lst">Emergencies</div><div class="lgrid">
             <a class="lcard" href="https://anaestheticcrisishandbook.com" target="_blank"><span class="lar">&#x2197;</span><div class="lct">NZ Crisis Handbook</div><div class="lcs">Anaesthetic Crisis Handbook (Hollingworth)</div></a>
     <a class="lcard" href="https://www.das.uk.com/guidelines" target="_blank"><span class="lar">↗</span><div class="lct">DAS guidelines</div><div class="lcs">Difficult Airway Society algorithms</div></a>
+    <a class="lcard" href="https://anaesthetists.org/Portals/0/PDFs/QRH/QRH_complete_June_2023.pdf?ver=2023-06-23-141011-603" target="_blank"><span class="lar">↗</span><div class="lct">AoA Quick Reference Flashcards</div><div class="lcs">Quick Reference Handbook — emergency algorithms</div></a>
   </div></div>
   
   <div class="ls"><div class="lst">Utilities</div><div class="lgrid">
@@ -622,15 +627,6 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 <!-- ══════════════════════════════════════
      NOTES (Google Doc embed)
 ═══════════════════════════════════════ -->
-<div class="page" id="tab-protocols">
-  <div class="cfw">
-    <div class="cfn">Notes - Wellington Regional Hospital Anaesthesia</div>
-    <iframe class="cfi"
-      src="https://docs.google.com/document/d/1miC7PYBLdHGGUdkzHjafOv7d-YKc4lKpAkolnMh8Ago/edit?usp=sharing&rm=minimal"
-      title="Anaesthesia notes">
-    </iframe>
-  </div>
-</div>
 
 <!-- ══════════════════════════════════════
      REGIONAL
@@ -675,7 +671,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 
   <div class="card" style="margin-bottom:12px">
     <div class="slabel" style="margin-bottom:10px">Transthoracic Echo Views</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Standard perioperative TTE views. Probe marker orientation shown (P = probe marker).</div>
+
     <div style="margin:12px 0"><img src="https://vantage.hypnos.one/images/tte-views-1.png" alt="Echo views 1" style="width:50%;display:block;margin:0 auto;border-radius:6px;border:1px solid var(--border)"></div>
 
   </div>
@@ -1627,7 +1623,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
         <th style="padding:8px 12px;font-size:11px;font-weight:500;color:var(--text2);text-align:left;border-bottom:1px solid var(--border);width:21%">Delay before neuraxial</th>
         <th style="padding:8px 12px;font-size:11px;font-weight:500;color:var(--text2);text-align:left;border-bottom:1px solid var(--border);width:26%">Dosing with catheter in situ</th>
         <th style="padding:8px 12px;font-size:11px;font-weight:500;color:var(--text2);text-align:left;border-bottom:1px solid var(--border);width:18%">Delay before removing catheter</th>
-        <th style="padding:8px 10px;font-size:11px;font-weight:500;color:var(--text2);text-align:left;border-bottom:1px solid var(--border)">Next dose after catheter removal or single-shot</th>
+        <th style="padding:8px 12px;font-size:11px;font-weight:500;color:var(--text2);text-align:left;border-bottom:1px solid var(--border);width:19%">Next dose after catheter removal or single-shot</th>
       </tr></thead>
       <tbody id="anticoag-tbody"></tbody>
     </table>
@@ -1776,11 +1772,12 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 ======================================= */
 var _curGroup = 'home';
 var _curDrugs = 'drugs';
+var _curCalc  = 'la';
 var _curRef   = 'consent';
 
 function _hideAll() {
   ['home','links','anticoag','consent','drugs','la','opioid','paed',
-   'regional','wellbeing','protocols','pocus','emergency'].forEach(function(id) {
+   'regional','wellbeing','pocus','emergency','omedd'].forEach(function(id) {
     var el = document.getElementById('tab-' + id);
     if (el) el.classList.remove('active');
   });
@@ -1798,6 +1795,10 @@ function showGroup(group, el) {
     document.getElementById('sub-drugs').classList.add('open');
     var firstSub = document.querySelector('#sub-drugs .sub-tab.active') || document.querySelector('#sub-drugs .sub-tab');
     showDrugsTab(_curDrugs, firstSub);
+  } else if (group === 'calculators') {
+    document.getElementById('sub-calc').classList.add('open');
+    var firstCalc = document.querySelector('#sub-calc .sub-tab.active') || document.querySelector('#sub-calc .sub-tab');
+    showCalcTab(_curCalc, firstCalc);
   } else if (group === 'regional') {
     document.getElementById('tab-regional').classList.add('active');
   } else if (group === 'pocus') {
@@ -1815,7 +1816,7 @@ function showGroup(group, el) {
 
 function showDrugsTab(id, el) {
   _curDrugs = id;
-  ['drugs','la','opioid','anticoag','paed','omedd'].forEach(function(p) {
+  ['drugs','anticoag','paed'].forEach(function(p) {
     var pg = document.getElementById('tab-' + p);
     if (pg) pg.classList.remove('active');
   });
@@ -1829,7 +1830,7 @@ function showDrugsTab(id, el) {
 
 function showRefTab(id, el) {
   _curRef = id;
-  ['consent','wellbeing','protocols'].forEach(function(p) {
+  ['consent','wellbeing'].forEach(function(p) {
     var pg = document.getElementById('tab-' + p);
     if (pg) pg.classList.remove('active');
   });
@@ -1839,17 +1840,30 @@ function showRefTab(id, el) {
   if (page) page.classList.add('active');
 }
 
+function showCalcTab(id, el) {
+  _curCalc = id;
+  ['la','opioid','omedd'].forEach(function(p) {
+    var pg = document.getElementById('tab-' + p);
+    if (pg) pg.classList.remove('active');
+  });
+  document.querySelectorAll('#sub-calc .sub-tab').forEach(function(t){ t.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  var page = document.getElementById('tab-' + id);
+  if (page) page.classList.add('active');
+}
+
 /* Legacy compat for any internal showTab calls */
 function showTab(id, el) {
   var groupMap = {
     'links':'links','anticoag':'drugs','consent':'reference','drugs':'drugs',
-    'la':'drugs','opioid':'drugs','paed':'drugs','regional':'regional',
-    'wellbeing':'reference','protocols':'reference','pocus':'pocus','emergency':'emergency'
+    'la':'calculators','opioid':'calculators','omedd':'calculators','paed':'drugs','regional':'regional',
+    'wellbeing':'reference','pocus':'pocus','emergency':'emergency'
   };
   var group = groupMap[id] || id;
   var navEl = document.querySelector('.nav-tab[onclick*="' + group + '"]');
   showGroup(group, navEl);
   if (group === 'drugs') showDrugsTab(id, null);
+  if (group === 'calculators') showCalcTab(id, null);
   if (group === 'reference') showRefTab(id, null);
 }
 
