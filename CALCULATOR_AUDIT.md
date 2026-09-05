@@ -4,6 +4,7 @@
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
 **Status:** findings only — **no code has been changed**
+**Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent — see **Addendum A**, which resolves the clinical values and adds F27–F29
 
 ---
 
@@ -83,6 +84,9 @@ examples are in §9.
 | **F24** | **C4** | Paed | Age display renders "17m" and "1y 17m" rather than normalising to years + months |
 | **F25** | **C4** | Consent | `new Date()` on a date input is parsed as UTC — DOB can render one day early outside NZ |
 | **F26** | **C4** | Paed drugs | IM ketamine at 10 mg/mL implies 10 mL IM for a 20 kg child |
+| **F27** | **C2** | Paed weight | Superseded APLS formulae — 2 kg low across the whole 1–5 y band; 13 % shortfall in defibrillation energy and fluid bolus *(Addendum A)* |
+| **F28** | **C2** | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A)* |
+| **F29** | **C3** | Opioids | Tapentadol factor 0.4; ANZCA gives **0.3** *(Addendum A)* |
 
 ---
 
@@ -259,8 +263,8 @@ Both express doses as oral morphine equivalents, so their factors should be iden
 | Oral oxycodone | 1.515 | 1.5 | ✓ |
 | Oral hydromorphone | 5.000 | 5 | ✓ |
 | Oral codeine | 0.133 | 0.15 | minor |
-| Oral tramadol | 0.100 | 0.1 | ✓ |
-| Oral tapentadol | 0.400 | 0.4 | ✓ |
+| Oral tramadol | 0.100 | 0.1 | both 50 % low vs ANZCA 0.2 — see Addendum A |
+| Oral tapentadol | 0.400 | 0.4 | both 33 % high vs ANZCA 0.3 — see Addendum A |
 | IV/SC morphine | 3.030 | 3 | ✓ |
 | **IV/SC oxycodone** | **3.030** | **2** | **−34 %** |
 | **IV/SC fentanyl** | **0.200** | **0.1** | **2×** |
@@ -709,3 +713,186 @@ Recorded so that a future audit doesn't repeat the work:
 *Prepared as a code and content audit. Clinical dose values flagged here should be
 confirmed against your institution's formulary and the current ANZCA / ANZCOR / APLS
 / AAGBI source documents before any change is made.*
+
+---
+
+# Addendum A — Verdicts against ANZCA / APLS
+
+**Added 5 September 2026.** The governing standard for this application is now set as
+**ANZCA / APLS**, with **ANZCOR** for resuscitation and **AAGBI** where ANZCA is
+silent (LA systemic toxicity, neuraxial anticoagulation). This addendum resolves the
+clinical values that §8 left as "confirm against your reference", and adds three
+findings that only became visible once a standard was fixed.
+
+**Verification method and its limits.** ANZCA's own domain and several secondary
+hosts are blocked by this environment's network egress policy, so the primary PDFs
+(PS01(PM) Appendix 2; the APLS manual) could **not** be fetched and read directly.
+The values below were established from search-engine extraction of those documents,
+corroborated across two or more independent queries where possible. That is good
+enough to *flag* a discrepancy and to rank it; it is **not** good enough to be the
+sole authority for a code change. **Every value in this addendum should be read off
+the primary document before it is written into the application.** Items I could not
+establish at all are listed in §A.4 rather than guessed.
+
+## A.1 Correction to this report
+
+Two statements in §5 and §8 of the original report were wrong against the standard
+now nominated, and both were mine — asserted from memory rather than checked:
+
+- I recorded oral **tapentadol × 0.4** as "consistent with ANZCA". ANZCA PS01(PM)
+  Appendix 2 gives **0.3**. The app is 33 % high, in both opioid tools.
+- I treated oral **tramadol × 0.1** as an acceptable variant ("some references use
+  10:1"). ANZCA gives **0.2**. The app is **50 % low**, in both opioid tools.
+
+Both are now carried as findings F28 and F29 below.
+
+## A.2 New findings
+
+### F27 — Paediatric weight uses superseded APLS formulae (C2)
+
+`index.html:2158`. The app implements the **pre-update** APLS formulae for the two
+younger bands. Current APLS uses a dedicated infant formula and the revised 1–5 year
+formula; only the 6–12 year (Luscombe & Owens) band matches.
+
+| Band | App | Current APLS | Effect |
+|---|---|---|---|
+| < 12 months | `(months / 2) + 4` | `(months + 9) / 2` | **0.5 kg low** throughout |
+| 1–5 years | `2 × (age + 4)` | `2 × (age + 5)` | **2 kg low** throughout |
+| 6–12 years | `3 × age + 7` | `3 × age + 7` | correct |
+
+| Age | App | APLS | Shortfall |
+|---|---|---|---|
+| 6 months | 7.0 kg | 7.5 kg | −7 % |
+| 1 year | 10 kg | 12 kg | **−17 %** |
+| 3 years | 14 kg | 16 kg | **−13 %** |
+| 5 years | 18 kg | 20 kg | −10 % |
+
+**Direction of harm is not uniform.** For drug dosing this under-estimates, which is
+the safe direction. For everything titrated *up* to a physiological endpoint it is
+the unsafe direction. At 3 years:
+
+| | App (14 kg) | APLS (16 kg) |
+|---|---|---|
+| Fluid bolus 10 mL/kg | 140 mL | 160 mL |
+| Defibrillation 4 J/kg | **56 J** | **64 J** |
+| Arrest adrenaline 10 mcg/kg | 140 mcg | 160 mcg |
+
+A 13 % shortfall in defibrillation energy and resuscitation fluid in a
+three-year-old is the finding that matters here, not the propofol.
+
+This also partly explains **F20**: with the correct `2 × (age + 5)`, the step at the
+band boundary falls from 18 → 22.3 kg (a 24 % jump across one month) to 20 → 25 kg
+(a 25 % rise spread across a whole year, which is how APLS intends it to be read).
+Fixing F27 and F20 together means switching to integer-year bands rather than
+fractional-age interpolation.
+
+### F28 — Tramadol factor is half the ANZCA value (C2)
+
+Both opioid tools use **0.1**; ANZCA PS01(PM) Appendix 2 gives **0.2**. A patient on
+400 mg/day of tramadol is scored at 40 mg oMEDD instead of 80 mg — under-stating
+exposure and, at the margin, failing to trigger the app's own ≥100 mg/day warning.
+
+### F29 — Tapentadol factor is a third above the ANZCA value (C3)
+
+Both tools use **0.4**; ANZCA gives **0.3**.
+
+## A.3 Revised verdicts on existing findings
+
+### F6 / F7 — the opioid factor tables, scored against ANZCA
+
+| Drug | oMEDD tab | Conversion tab | **ANZCA** | Verdict |
+|---|---|---|---|---|
+| Oral morphine | 1 | 1 | 1 | ✓ |
+| Oral oxycodone | 1.5 | 1.515 | 1.5 | ✓ |
+| Oral hydromorphone | 5 | 5 | 5 | ✓ |
+| Oral codeine | 0.15 | 0.133 | **0.13** | conversion tab ✓; oMEDD tab 15 % high |
+| Oral tramadol | 0.1 | 0.1 | **0.2** | **both 50 % low** (F28) |
+| Oral tapentadol | 0.4 | 0.4 | **0.3** | **both 33 % high** (F29) |
+| IV/SC morphine | 3 | 3.03 | 3 | ✓ |
+| **IV/SC fentanyl** (per mcg) | **0.1** | **0.2** | **0.3** | **oMEDD tab 3× low; conversion tab 1.5× low** |
+| Fentanyl patch (per mcg/hr) | 2.4 | — | **3** | 20 % low |
+| Buprenorphine patch (per mcg/hr) | 2.4 | — | **2** | 20 % high — and the on-screen footnote says **25**, which is 12.5× the ANZCA value |
+
+This sharpens **F6**. The two tools disagreeing with each other was the headline;
+against ANZCA, **neither** is right for parenteral fentanyl — 0.3 is the reference
+value and the app offers 0.1 on one tab and 0.2 on the other.
+
+Worked case, a patient on a 75 mcg/hr fentanyl patch plus tramadol 200 mg/day:
+
+- App oMEDD tab: **200 mg/day**
+- ANZCA factors: **265 mg/day**
+
+Both cross the ≥200 mg/day "significant overdose risk" threshold here, but only just,
+and a slightly smaller patch dose separates them.
+
+**Two ANZCA caveats the app does not carry**, both of which should appear on the
+oMEDD tab (the conversion tab already has the cross-tolerance warning):
+
+- ANZCA states that calculating an "equivalent" dose of a replacement opioid **may
+  lead to overdosage** and that caution is required when these tables are used to
+  guide switching.
+- ANZCA **excludes** methadone, transmucosal/lozenge fentanyl and neuraxial opioids
+  from the calculator because their pharmacokinetics are complex and variable. This
+  reframes **F8**: methadone's absence from the oMEDD list is *consistent with*
+  ANZCA. The defect is that the app is silent about the omission — it should say
+  methadone is excluded and why, rather than returning a total that quietly ignores
+  it. The unreachable `raw === 'methadone'` branch should be deleted, not wired up.
+
+### F18 — confirmed
+
+ANZCOR Guideline 11.9 gives adult atropine 500–600 mcg repeated every 3–5 min **to a
+total of 3 mg**. The app's "Max 6 mg", in both the antiarrhythmic table and the
+Bradycardia page, is double the ANZCOR ceiling. **Finding stands, now with a named
+source.**
+
+### F1, F2, F3, F4, F5, F9, F13 — unchanged
+
+None of these depend on which standard is chosen. F1 (unbounded APLS above 12 years),
+F2 (adenosine flow-arrest dose in the antiarrhythmic table), F3 (unenforced maxima),
+F4 (IBW overriding actual weight), F5 (ETT sizing), F9 (4-2-1) and F13 (no input
+validation) are code defects on any reading. They remain the priority.
+
+Note that **F1 and F27 interact**: fixing F27 alone, without bounding the function at
+12 years, would make the adult-age output *larger*, not smaller. F1 must be fixed
+first or at the same time.
+
+## A.4 Still unresolved
+
+These could not be established to a standard I would act on, and are listed so they
+are not silently dropped:
+
+| Item | Status |
+|---|---|
+| ANZCA factor for **parenteral oxycodone** | Not established. The app's two tools disagree (2 vs 3.03); one source describes an IV oxycodone : IV morphine ratio of 2:3, but I could not confirm how ANZCA renders it. **Read off PS01(PM) Appendix 2.** |
+| **APLS paediatric atropine** maximum single dose | App states 0.5 mg; some sources give 0.6 mg. Not confirmed. |
+| **Aminophylline** loading dose (F10) | The app's own Bronchospasm page (400 mg ≈ 5.7 mg/kg) is consistent with the conventional 5 mg/kg; the drug table's 10 mg/kg is the outlier. Direction is clear; the exact ANZ-endorsed figure is not confirmed. |
+| **Ropivacaine** ceiling (F4, secondary) | App uses 300 mg. Not confirmed against an ANZCA/AAGBI source. |
+| **Paediatric tramadol and parecoxib** licensing status | Flagged in §8; not verified. |
+| **Buprenorphine patch** — partial agonist, non-linear | Even with ANZCA's factor of 2, this conversion warrants its own caveat. |
+
+## A.5 Effect on the recommended order of work
+
+§9 Tier 1 is unchanged — **F1, F2, F3, F4** remain the four to fix first, and none of
+them turned on the choice of standard.
+
+**F27 joins Tier 1**, because it is a resuscitation-parameter error (defibrillation
+energy, fluid bolus) rather than a drug-dosing one, and because it must be sequenced
+with F1.
+
+Tier 2 item 6 becomes concrete: build **one** opioid factor table from ANZCA
+PS01(PM) Appendix 2, use it in both tools, print the ANZCA source and version on
+screen, carry the cross-tolerance and switching warnings on both tabs, and state
+explicitly that methadone and transmucosal fentanyl are excluded by ANZCA rather
+than omitting them silently.
+
+## A.6 Sources
+
+- [FPM Opioid Calculator — ANZCA](https://www.anzca.edu.au/safety-and-advocacy/opioid-calculator)
+- [PS01(PM) Appendix 2 (2025 update) — Opioid Dose Equivalence Calculation Table (PDF)](https://www.anzca.edu.au/getContentAsset/fbd6254a-05be-48eb-a50f-a6e85d89d4db/80feb437-d24d-46b8-a858-4a2a28b9b970/PS01(PM)-(Appendix)_-Opioid-Dose-Equivalence-Calculation-Table.PDF?language=en) — *primary source; could not be fetched from this environment*
+- [PS01(PM) Appendix (2021) — mirrored copy (PDF)](https://esaic.org/wp-content/uploads/2023/12/ps01pm-appendix-2021-opioid-dose-equivalence-calculation-table.pdf)
+- [ANZCOR Guideline 11.9 — Managing Acute Dysrhythmias](https://www.anzcor.org/home/adult-advanced-life-support/guideline-11-9-managing-acute-dysrhythmias)
+- [ANZCOR Guideline 12.3 — Management of other arrhythmias in infants and children](https://www.anzcor.org/home/paediatric-advanced-life-support/guideline-12-2-paediatric-advanced-life-support-pals-2)
+- [Weight estimation — Don't Forget the Bubbles](https://dontforgetthebubbles.com/weight-estimation/)
+- [Comparison of actual to estimated weights in Australian children, using the original and updated APLS, Luscombe and Owens, Best Guess formulae and the Broselow tape — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0300957213008873)
+- [Weight estimation in paediatrics: a comparison of the APLS formula and 'Weight = 3(age)+7' — PubMed](https://pubmed.ncbi.nlm.nih.gov/20659877/)
+- [Wellington ICU Drug Manual — Opioid Dose Equivalence](https://drug.wellingtonicu.com/appendices/appendix6/)
