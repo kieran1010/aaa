@@ -1,0 +1,711 @@
+# Calculator Safety Audit — Vantage (`index.html`)
+
+**Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
+**Date:** 5 September 2026
+**Scope:** every interactive calculator plus the static dose content the calculators are checked against
+**Status:** findings only — **no code has been changed**
+
+---
+
+## 1. Method
+
+Every calculator was read line-by-line, its logic extracted and re-executed outside the
+page to confirm the numbers it actually produces, then screened on five axes:
+
+1. **Input handling** — out-of-range, out-of-domain, blank, zero, negative, and
+   unconventional-but-plausible entries (e.g. "17 months" rather than "1 year 5 months")
+2. **Units** — per-kg vs absolute, mg vs mcg, concentration vs dose, mL vs mg
+3. **Calculation** — the arithmetic itself
+4. **Dosing** — the drug values against normal ANZ/UK practice
+5. **Consistency** — internal (does the app agree with itself?) and external
+   (does it agree with the guideline it cites?)
+
+Every numerical claim below was reproduced by running the app's own code. Worked
+examples are in §9.
+
+### Calculators in scope
+
+| # | Calculator | Location |
+|---|---|---|
+| 1 | Global patient card (age from DOB, TBW/IBW/LBW/ABW) | `calcAgeFromDOB`, `globalPatientUpdate` |
+| 2 | LA maximum dose / cumulative toxicity fraction | `getIBW`, `calcLA` |
+| 3 | Paediatric weight estimate (APLS) | `aplsWeight`, `calcPdAge` |
+| 4 | Paediatric drug doses (PaeDose) | `PD_CATS`, `calcPaed` |
+| 5 | Paediatric airway sizing | `renderAirway` |
+| 6 | Adult drug dosing table | `DRUG_CATS`, `ddFmtRange`, `renderDrugTable` |
+| 7 | Antibiotic dosing table | `ABX_DATA`, `renderAbxTable` |
+| 8 | Body weights (drugs tab — duplicate of #1) | `calcBodyWeights` |
+| 9 | Opioid conversion | `OPIOIDS`, `calcOpioid` |
+| 10 | oMEDD | `OMEDD_DRUGS`, `calcOmedd` |
+| 11 | Anticoagulant / neuraxial timing (lookup) | `ANTICOAG_DATA` |
+| 12 | Consent document generator | `updateConsent` |
+
+---
+
+## 2. Severity key
+
+| | Meaning |
+|---|---|
+| **C1 — Critical** | Can produce a dose that would seriously harm a patient, reachable by ordinary use |
+| **C2 — High** | Wrong output, or a stated safety limit that is not enforced |
+| **C3 — Moderate** | Internally inconsistent, or deviates from the cited guideline |
+| **C4 — Low** | Display, wording, or robustness issue with no direct dosing consequence |
+
+---
+
+## 3. Summary of findings
+
+| ID | Severity | Calculator | Finding |
+|---|---|---|---|
+| **F1** | **C1** | Paed weight | Adult ages produce a paediatric "APLS" weight — 40 y → **127 kg**, 85 y → **262 kg** — and every paediatric dose is then computed on it |
+| **F2** | **C1** | Adult drugs | Adenosine listed as **0.3–0.5 mg/kg** (21–35 mg at 70 kg) in the general antiarrhythmic table; the SVT dose is 6 mg then 12 mg. The app's own Tachycardia page says 6 mg |
+| **F3** | **C1** | Paed drugs | 14 drugs display "Max X" in their note but the cap is **never applied** — suxamethonium, adrenaline, atropine, ondansetron, neostigmine and others are uncapped |
+| **F4** | **C1** | LA max dose | IBW **always overrides** entered weight, so an underweight adult gets a max dose **36–41 % above** their true limit |
+| **F5** | **C2** | Paed airway | ETT size and depth are wrong at both ends: neonate → 4.0 mm / 12 cm; 30–50 kg with weight-only entry → oversized by ~1–1.5 mm |
+| **F6** | **C2** | Opioids | The conversion tab and the oMEDD tab disagree by **2×** for IV fentanyl and **50 %** for IV oxycodone |
+| **F7** | **C2** | oMEDD | On-screen footnote says buprenorphine patch **× 25**; the code uses **× 2.4** |
+| **F8** | **C2** | oMEDD | **Methadone is absent** from the drug list; the methadone branch in the code is unreachable |
+| **F9** | **C2** | Paed drugs | 4-2-1 maintenance row returns **4 mL/kg/hr flat** — 180 mL/hr for a 45 kg child instead of 85 |
+| **F10** | **C2** | Adult drugs | Aminophylline **10 mg/kg** (700 mg at 70 kg); the app's own Bronchospasm page says 400 mg |
+| **F11** | **C2** | Paed drugs | Sugammadex note reverses the block depths: "Deep: 16 mg/kg; moderate: 4 mg/kg" |
+| **F12** | **C2** | Paed drugs | IM adrenaline for anaphylaxis defaults to **1:10 000** |
+| **F13** | **C2** | All | **No input validation anywhere** — `min`/`max` attributes are inert without a form |
+| **F14** | **C3** | Body weights | The two body-weight calculators disagree when TBW < IBW (45 kg patient → 45 kg vs 61 kg) |
+| **F15** | **C3** | Global | Age-from-DOB is off by one month around the birthday; future DOB gives a negative age |
+| **F16** | **C3** | Opioids | Methadone conversion does not round-trip — 7.5 mg → 30 mg oMEDD → 5 mg (−33 %) |
+| **F17** | **C3** | Adult drugs | Salbutamol IV, esmolol and ephedrine each disagree with the emergency algorithm pages |
+| **F18** | **C3** | Adult drugs | Atropine max stated as **6 mg** (table and Bradycardia page); ANZCOR max is 3 mg |
+| **F19** | **C3** | Body weights | Devine IBW is applied below its valid range — 100 cm gives **0–2.6 kg** |
+| **F20** | **C3** | Paed weight | 4-kg discontinuity at exactly 5.0 years (18 kg → 22.3 kg) |
+| **F21** | **C3** | Adult drugs | Propofol infusion range (25–75 mcg/kg/min) contradicts its own note (50–150) |
+| **F22** | **C3** | Regional | Block LA volumes are static text with no weight input and no link to the LA calculator |
+| **F23** | **C3** | Emergency | Dantrolene and Intralipid show hard-coded 70 kg examples, ignoring the global patient card |
+| **F24** | **C4** | Paed | Age display renders "17m" and "1y 17m" rather than normalising to years + months |
+| **F25** | **C4** | Consent | `new Date()` on a date input is parsed as UTC — DOB can render one day early outside NZ |
+| **F26** | **C4** | Paed drugs | IM ketamine at 10 mg/mL implies 10 mL IM for a 20 kg child |
+
+---
+
+## 4. Critical findings in detail
+
+### F1 — Adult ages produce a paediatric weight estimate (C1)
+
+`index.html:2158`
+
+```js
+function aplsWeight(totalMonths) {
+  const yr = totalMonths / 12;
+  if (totalMonths < 3)  return null;
+  if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
+  if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
+  return Math.round((3 * yr + 7) * 10) / 10; // covers all ages
+}
+```
+
+The final branch has no upper bound, and the comment asserting it "covers all ages"
+is wrong — `3 × age + 7` is the APLS 6–12 year formula only.
+
+The companion function `aplsFormula` *does* know this: above 12 years it returns the
+label `'adult'`. So the UI displays the word **"adult"** next to a weight that was
+nonetheless computed with the paediatric formula, and `getPdWt()` then feeds that
+weight to every drug in the table.
+
+| Age entered | Weight shown | Formula label shown |
+|---|---|---|
+| 13 y | 46 kg | adult |
+| 18 y | 61 kg | adult |
+| 40 y | **127 kg** | adult |
+| 85 y | **262 kg** | adult |
+
+At 40 years with no weight entered, the paediatric table then offers:
+
+- Propofol 3 mg/kg → **381 mg**
+- Ketamine IM 5 mg/kg → **635 mg**
+- Suxamethonium IV 2 mg/kg → **254 mg** (its note claims "Max 150 mg")
+- Adrenaline arrest 0.01 mg/kg → **1.27 mg** (its note claims "Max 1 mg")
+
+The global patient card accepts ages up to 120 years (`g-yr max="120"`) and
+propagates them straight into `pd-yr`, so this is reachable without the user ever
+opening the paediatric tab deliberately.
+
+**Also:** ages under 3 months return `null`, so neonates get no estimate at all —
+the fail-safe direction, but it leaves the commonest high-risk group unsupported.
+
+---
+
+### F2 — Adenosine at 0.3–0.5 mg/kg in the antiarrhythmic table (C1)
+
+`index.html:2678`
+
+```js
+{ name:'Adenosine', bolusLo:0.3, bolusHi:0.5, bolusUnit:'mg/kg',
+  notes:'Rapid IV push' }
+```
+
+| Weight | Table calculates | ANZCOR SVT dose |
+|---|---|---|
+| 50 kg | 15–25 mg | 6 mg → 12 mg |
+| 70 kg | **21–35 mg** | 6 mg → 12 mg |
+| 100 kg | **30–50 mg** | 6 mg → 12 mg |
+
+This value appears to have been imported from the app's own **Aneurysm Rupture (OR)**
+page, which correctly cites *"Adenosine 0.3–0.6 mg/kg for transient flow arrest"* —
+a specialist neurovascular technique for deliberately inducing transient asystole.
+Presented in a general antiarrhythmic table annotated only "Rapid IV push", it reads
+as a routine SVT dose.
+
+The app contradicts itself: the **Tachycardia** page correctly says *"Adenosine 6 mg
+rapid IV bolus + saline flush; no response: 12 mg"*. The paediatric table also gets
+it right at 0.1 mg/kg.
+
+---
+
+### F3 — Stated maximum doses are not enforced (C1)
+
+`index.html:2405`
+
+```js
+const rawDose = calcDose(drug.doseStr, wt);
+if (rawDose && drug.maxDose != null) {
+  dose = { lo: Math.min(rawDose.lo, drug.maxDose), ... };
+} else {
+  dose = rawDose;          // <- no cap
+}
+```
+
+The cap is applied only when a `maxDose` **field** exists. Fourteen drugs state a
+maximum in their free-text `note` — which is what the clinician reads — but have no
+`maxDose` field, so the calculated dose sails past it:
+
+| Drug | Note claims | Actually capped? |
+|---|---|---|
+| Midazolam (oral premed) | Max 15 mg | **No** |
+| Suxamethonium (IV) | Max 150 mg | **No** |
+| Atropine (reversal) | Min 0.1 mg; max 0.5 mg | **No** |
+| Atropine (emergency) | Min 0.1 mg, max 0.5 mg | **No** |
+| Glycopyrrolate | Max 0.4 mg | **No** |
+| Neostigmine | Max 5 mg | **No** |
+| Ketorolac | Max 15 mg | **No** |
+| Parecoxib | Max 40 mg | **No** |
+| Cyclizine | Max 50 mg | **No** |
+| Dexamethasone | Max 8 mg | **No** |
+| Ondansetron | Max 4 mg | **No** |
+| Adenosine | max 6 mg 1st dose | **No** |
+| Adrenaline (IM) | Max 0.5 mg | **No** |
+| Adrenaline (arrest) | Max 1 mg | **No** |
+
+Correctly capped: clonidine, oral ketamine, fentanyl, IV/oral morphine, ibuprofen,
+both paracetamol rows, tramadol, amiodarone.
+
+A 45 kg adolescent is therefore offered ondansetron 6.75 mg (max 4), dexamethasone
+4.5 mg (max 8 — fine), neostigmine 2.25 mg (fine), but adrenaline 0.45 mg IM
+(within max) — and a 60 kg 15-year-old gets adrenaline **0.6 mg IM** against a
+stated 0.5 mg ceiling. Combined with **F1**, an adult age silently entered on this
+tab removes every remaining brake.
+
+The minimum doses (atropine "Min 0.1 mg") are equally unenforced, in the opposite
+direction: a 3 kg neonate is offered 60 mcg, below the dose at which paradoxical
+bradycardia is a concern.
+
+---
+
+### F4 — LA calculator uses IBW in preference to actual weight (C1)
+
+`index.html:2000`
+
+```js
+const used = calc ?? wt;   // IBW if height+sex given, else actual weight
+```
+
+Using IBW is the right conservative choice for an **obese** patient. But the code
+applies it unconditionally, so for a patient lighter than their ideal weight it
+raises the ceiling instead of lowering it:
+
+| Patient | Weight used | Lignocaine max | True (3 mg/kg) | Error |
+|---|---|---|---|---|
+| 170 cm, 45 kg, frail elderly ♀ | 61.4 kg | 184 mg | 135 mg | **+36 %** |
+| 175 cm, 50 kg, cachectic ♂ | 70.5 kg | 200 mg | 150 mg | **+41 %** |
+| 160 cm, 90 kg, obese ♀ | 52.4 kg | 157 mg | 200 mg | conservative ✓ |
+| 180 cm, 80 kg | 75 kg | 200 mg | 200 mg | ✓ |
+
+Bupivacaine shows the same pattern (123 mg vs a true 90 mg for the 45 kg patient) —
+and low body weight, frailty and low albumin are precisely the risk factors for LAST.
+
+**The correct rule is `min(IBW, TBW)`.**
+
+Two secondary problems in the same function:
+
+- **Below Devine's valid range**, the formula is applied anyway. A 100 cm, 16 kg
+  child gives an IBW of **2.5 kg** and a lignocaine ceiling of **7.5 mg**. Guarded
+  only by `if (calc < 1) calc = null`. This errs safe, but silently produces a
+  meaningless number rather than declining to answer.
+- **Ropivacaine's absolute ceiling is set to 300 mg** (`index.html:1988`). The
+  commonly quoted single-dose maximum is 3 mg/kg to a ceiling of 200–225 mg. Worth
+  confirming against your intended reference.
+
+---
+
+## 5. Cross-calculator consistency
+
+The app contains two opioid tools and two body-weight tools. Neither pair agrees.
+
+### F6 — Opioid conversion vs oMEDD
+
+Both express doses as oral morphine equivalents, so their factors should be identical.
+
+| Drug | Conversion tab (implied factor) | oMEDD tab | |
+|---|---|---|---|
+| Oral morphine | 1.000 | 1 | ✓ |
+| Oral oxycodone | 1.515 | 1.5 | ✓ |
+| Oral hydromorphone | 5.000 | 5 | ✓ |
+| Oral codeine | 0.133 | 0.15 | minor |
+| Oral tramadol | 0.100 | 0.1 | ✓ |
+| Oral tapentadol | 0.400 | 0.4 | ✓ |
+| IV/SC morphine | 3.030 | 3 | ✓ |
+| **IV/SC oxycodone** | **3.030** | **2** | **−34 %** |
+| **IV/SC fentanyl** | **0.200** | **0.1** | **2×** |
+
+A patient on 600 mcg/day of IV fentanyl is scored at **60 mg oMEDD** on one tab and
+**120 mg** on the other. The 100 mg/day risk warning fires on one and not the other.
+
+For external comparison, the factor in common ANZ use for parenteral fentanyl is
+**0.3** (100 mcg IV fentanyl ≈ 10 mg IV morphine ≈ 30 mg oral morphine). Both of the
+app's values sit below that, so both **under**-state oMEDD — which under-recognises
+high-risk patients and, when converting *to* fentanyl, over-states the fentanyl dose.
+Recommend adopting one factor table, citing its source, and using it in both tools.
+
+### F7 — oMEDD footnote contradicts oMEDD code
+
+The visible footnote (`index.html:1721`) reads:
+
+> Buprenorphine patch (mcg/hr) **× 25** • Fentanyl patch (mcg/hr) × 2.4
+
+The code (`index.html:3189`) uses `factor: 2.4` for buprenorphine — a **10-fold**
+discrepancy between what the clinician is told and what is computed. The footnote
+also omits IV/SC oxycodone and oral tapentadol, both of which are in the dropdown.
+
+Separately, buprenorphine and fentanyl patches carrying an *identical* factor of 2.4
+looks like a copy-paste. Buprenorphine is a partial agonist with a non-linear
+relationship to morphine; this warrants an explicit source.
+
+### F8 — Methadone silently missing from oMEDD
+
+`calcOmedd` contains a branch for `raw === 'methadone'`, but option values are built
+as `factor|unit` where factor is always numeric — so the branch is **unreachable**,
+and there is no methadone entry in `OMEDD_DRUGS` at all. A patient on methadone plus
+oxycodone returns an oMEDD that omits the methadone entirely.
+
+### F16 — Methadone conversion does not round-trip
+
+The forward direction (oMEDD → methadone) bands on the **morphine** dose and matches
+the displayed Ripamonti table. The reverse (methadone → oMEDD) bands on the
+**methadone** dose using different cut-points, so the two are not inverses:
+
+| Enter | → oMEDD | → back to methadone | Drift |
+|---|---|---|---|
+| 7.5 mg | 30 mg | 5.0 mg | −33 % |
+| 15 mg | 90 mg | 11.3 mg | −25 % |
+| 20 mg | 120 mg | 15.0 mg | −25 % |
+| 50 mg | 400 mg | 33.3 mg | −33 % |
+
+The reference column also hard-codes "2.5 mg" as the methadone equivalent of 10 mg
+morphine (a 4:1 ratio), which only holds at low oMEDD and conflicts with the
+computed value in the adjacent cell.
+
+The cross-tolerance warning and Ripamonti citation on this tab are good and should be
+kept. The **oMEDD tab has no equivalent warning** and should get one.
+
+### F14 — The two body-weight calculators disagree
+
+`globalPatientUpdate` (patient card) and `calcBodyWeights` (drugs tab) implement the
+same four formulae, but diverge in the `TBW ≤ IBW` branch:
+
+```js
+// patient card, index.html:1953
+var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4*(wt-ibwMnum)) : rnd(wt);   // -> TBW
+// drugs tab, index.html:2951
+var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4*(wt-ibwMnum)) : ibwM;      // -> IBW
+```
+
+| Patient | Patient card ABW | Drugs tab ABW |
+|---|---|---|
+| 45 kg, 170 cm ♀ | 45 kg | **61 kg** |
+| 50 kg, 175 cm ♂ | 50 kg | **70 kg** |
+| 55 kg, 180 cm ♂ | 55 kg | **75 kg** |
+| 90 kg, 160 cm ♀ | 67 kg | 67 kg ✓ |
+
+The drugs-tab version returns an "adjusted body weight" **larger than the patient**,
+which is the dangerous direction for any drug dosed on ABW. The patient-card version
+is correct. This is a duplicated-logic problem: the two should be one shared function.
+
+### F19 — Devine below its valid range
+
+Both calculators clamp with `Math.max(0, ...)` rather than declining:
+
+| Height | IBW ♂ | IBW ♀ |
+|---|---|---|
+| 100 cm | 2.6 kg | **0.0 kg** |
+| 110 cm | 11.6 kg | 7.1 kg |
+| 120 cm | 20.7 kg | 16.2 kg |
+| 152.4 cm | 50.0 kg | 45.5 kg |
+
+The height inputs accept 100 cm, so these are reachable. An IBW of 0 kg then makes
+ABW = 0.4 × TBW.
+
+### F17 — Adult table vs the app's own emergency algorithms
+
+| Drug | Adult drug table (at 70 kg) | Emergency algorithm page |
+|---|---|---|
+| Adenosine | 21–35 mg | 6 mg → 12 mg *(Tachycardia)* |
+| Aminophylline | **700 mg** (10 mg/kg) | 400 mg over 15 min *(Bronchospasm)* |
+| Salbutamol IV | **700 mcg** (10 mcg/kg) | 250 mcg slow push *(Bronchospasm)* |
+| Esmolol | 70–140 mg (1–2 mg/kg) | 10 mg boluses titrated *(Hypertension)* |
+| Ephedrine | 17.5 mg (0.25 mg/kg) | 9 mg boluses *(Hypotension, Bradycardia)* |
+| Metoprolol max | 5 mg | 15 mg *(Tachycardia, Hypertension)* |
+| Sugammadex | "Deep: 16 mg/kg; moderate: 4" *(paed)* | 4 mg/kg PTC>2, 2 mg/kg T2 *(Failure to Wake)* |
+| Mannitol | — | 0.25–1 g/kg *(IR)* vs 0.25–2 g/kg *(ICP)* |
+
+In each row the **emergency page is the more defensible value** and the drug table
+is the outlier. Aminophylline at 10 mg/kg is roughly double the usual 5 mg/kg
+loading dose; salbutamol at 10 mcg/kg is ~2.8× the usual 250 mcg adult bolus;
+esmolol's 2 mg/kg upper bound is above the usual 0.5–1 mg/kg load.
+
+---
+
+## 6. Input handling
+
+**F13 — there is no input validation in the application.** `min`, `max` and `step`
+attributes are present on every numeric field, but they only take effect on form
+submission or an explicit `checkValidity()` call, and the app has neither — every
+value is read straight through `parseFloat`/`parseInt` in an `oninput` handler.
+Confirmed: no occurrence of `checkValidity`, `reportValidity`, `validity` or
+`setCustomValidity` anywhere in the file.
+
+| Input | Declared range | Actually enforced | Consequence of exceeding it |
+|---|---|---|---|
+| `g-yr` age (years) | 0–120 | **No** | feeds `pd-yr` → **F1** |
+| `g-mo` age (months) | 0–11 | **No** | see below |
+| `pd-yr` | 0–18 | **No** | **F1** |
+| `pd-mo` | 0–11 | **No** | see below |
+| `pd-wt` | 0.5–150 | **No** | no neonatal guard |
+| `g-wt`, `dd-wt`, `la-wt` | 1–250 | **No** | unbounded doses |
+| `g-ht`, `dd-ht`, `la-ht` | 100–220 | **No** | **F19** |
+| `oc-dose` (opioid) | ≥0 | **No** | unbounded conversions |
+| `omedd-dose-*` | ≥0 | **No** | unbounded totals |
+
+### The "17 months" case (F24)
+
+Entering **17** in the months field with years blank is handled **correctly
+arithmetically** — `totalMonths = 17`, which lands in the 1–5 year branch and gives
+10.8 kg (APLS for ~1.4 y). The failure is in presentation:
+
+`index.html:2186`
+```js
+totalMonths > 0 ? (yr > 0 ? yr + 'y ' : '') + mo + 'm' : '-'
+```
+
+The display is assembled from the raw fields rather than from `totalMonths`, so:
+
+| Entered | Displayed | Should read |
+|---|---|---|
+| 0 y, 17 m | `17m` | `1y 5m` |
+| 1 y, 17 m | `1y 17m` | `2y 5m` |
+| 0 y, 0 m | `-` | `-` |
+
+The weight is right; the age readback is not. In a paediatric resus context a
+clinician cross-checking "does that age look right for this child?" gets a string
+that doesn't obviously correspond to the age they meant. Normalising with
+`Math.floor(totalMonths/12)` and `totalMonths % 12` fixes it.
+
+### F15 — Age from DOB
+
+`index.html:1874`
+```js
+if (now.getDate() < d.getDate()) mo = Math.max(0, mo - 1);
+```
+
+The `Math.max(0, …)` clamp swallows the borrow instead of decrementing the year:
+
+| DOB | Today | App says | Correct |
+|---|---|---|---|
+| 2020-03-15 | 2026-03-10 | 6 y 0 m | 5 y 11 m |
+| 2025-06-20 | 2026-06-10 | 1 y 0 m | 0 y 11 m |
+| 2030-01-01 | 2026-09-05 | **−4 y 8 m** | (should be rejected) |
+
+The second row matters: it moves the child across the 12-month APLS boundary
+(9.5 kg → 10 kg). A future DOB is accepted and produces a negative age, which then
+falls into `aplsWeight`'s `totalMonths < 3` branch and returns `null` — so it fails
+safe by accident rather than by design.
+
+`new Date(dob)` also parses a `<input type="date">` value as **UTC midnight** and
+compares it against a local `new Date()`. In NZ (UTC+12/13) this is harmless; west
+of UTC it shifts the date by a day. The same pattern in `formatDOB`/`formatDate`
+(`index.html:3732`) can print a **consent document with a DOB one day early** for
+any user in a negative-offset timezone (**F25**).
+
+---
+
+## 7. Paediatric airway calculator (F5)
+
+`index.html:2350`
+
+```js
+var age = yr + mo / 12;
+if (!age && wt) age = Math.max(0, wt / 2 - 4);
+```
+
+**Two separate problems.**
+
+**(a) Age inferred from weight is wrong above ~20 kg.** The fallback inverts the
+*infant* formula (`wt = months/2 + 4`) but treats the result as **years**:
+
+| Weight only | App infers | APLS-consistent age | App ETT | Appropriate ETT |
+|---|---|---|---|---|
+| 5 kg | 0.0 y | ~0.2 y | 4.0 mm | 3.5 mm |
+| 10 kg | 1.0 y | ~1.0 y | 4.5 mm | 4.5 mm ✓ |
+| 20 kg | 6.0 y | ~4.3 y | 5.5 mm | 5.5 mm ✓ |
+| 30 kg | 11.0 y | ~7.7 y | **7.0 mm** | 6.0 mm |
+| 40 kg | 16.0 y | ~11.0 y | **8.0 mm** | 7.0 mm |
+| 50 kg | 21.0 y | ~14.3 y | **9.5 mm** | 8.0 mm |
+
+Oversized by 1–1.5 mm in school-age children, with the corresponding depth error
+(22.5 cm at the lip for a 50 kg child).
+
+**(b) The formulae are extrapolated below their valid range.** `age/4 + 4` and
+`age/2 + 12` are Cole's formulae, valid from roughly 1–2 years:
+
+| Age | App ETT | App lip depth | Appropriate |
+|---|---|---|---|
+| Term neonate | 4.0 mm | 12 cm | 3.0–3.5 mm, ~9–10 cm |
+| 3 months | 4.5 mm | 12.5 cm | 3.5 mm, ~10 cm |
+| 6 months | 4.5 mm | 12.5 cm | 3.5–4.0 mm, ~10–11 cm |
+
+An ETT 1 mm oversized in a neonate risks subglottic injury; 12 cm at the lip in a
+neonate is frankly endobronchial. Neonates and infants need the weight-based rules
+(depth ≈ weight + 6 cm) rather than Cole's.
+
+**(c) `roundHalfUp` always rounds up** (`Math.ceil(x*2)/2`), biasing every borderline
+size upward — the same direction as the errors above.
+
+**What is correct:** LMA sizing and cuff volumes match the classic LMA chart across
+all seven bands; Guedel, face mask and blade selections are reasonable; the cuffed
+formula `age/4 + 3.5` is standard.
+
+There is also **no upper bound** — combined with **F1**, entering an adult age on
+this tab returns an ETT of `40/4 + 4 = 14 mm`.
+
+---
+
+## 8. Remaining findings
+
+### Paediatric drug table
+
+- **F9 — 4-2-1 maintenance is wrong.** `parseDoseRange` guards against the string
+  `'4/2/1'`, but the data uses `'4-2-1'`. Splitting on `-` yields three parts, falls
+  through, and returns `{lo: 4, hi: 4}` — a flat 4 mL/kg/hr:
+
+  | Weight | App shows | True 4-2-1 |
+  |---|---|---|
+  | 10 kg | 40 | 40 ✓ |
+  | 20 kg | **80** | 60 |
+  | 30 kg | **120** | 70 |
+  | 45 kg | **180** | 85 |
+
+  It also renders with **no unit** (the row's `unit` is `''`), so the output is a
+  bare number in a column headed "Calc. dose".
+
+- **F11 — Sugammadex note is reversed.** "Deep: 16 mg/kg; moderate: 4 mg/kg" should
+  be *moderate 2, deep 4, immediate rescue 16*. The app's own Failure to Wake page
+  states it correctly.
+
+- **F12 — IM adrenaline defaults to 1:10 000.** The anaphylaxis row lists
+  `1:10000` first and `1:1000` second, so a 20 kg child's 0.2 mg IM dose is presented
+  as **2 mL of 1:10 000**. IM adrenaline should be given as 1:1000; list it first, or
+  restrict this row to it.
+
+- **F26 — IM ketamine at 10 mg/mL.** 5 mg/kg for a 20 kg child computes to **10 mL
+  IM**. IM ketamine needs 50 or 100 mg/mL.
+
+- **Ephedrine** is listed as route `im` with a 3 mg/mL concentration — 3 mg/mL is an
+  IV dilution. Route or concentration is wrong.
+
+- **Clinical values to re-check against your reference:** tramadol (contraindicated
+  <12 y per FDA/EMA), parecoxib (not licensed in children), cyclizine 1 mg/kg
+  (age-banded dosing is usual: 25 mg for 6–12 y), oral paracetamol load capped at
+  1500 mg (above the usual 1 g adult single dose), hydrocortisone 2 mg/kg for
+  anaphylaxis (4 mg/kg is more usual).
+
+- **What is correct:** every concentration-to-volume conversion checked out
+  (atropine 600 mcg/mL from 0.6 mg/mL, neostigmine 2500 mcg/mL from 2.5 mg/mL,
+  glycopyrrolate 200 mcg/mL, salbutamol 500 mcg/mL, amiodarone, adenosine,
+  ondansetron, dexamethasone, cyclizine, sux, roc, vec, propofol, morphine). The
+  paracetamol IV weight-banded special case (7.5 / 10 / 15 mg/kg, capped at 1000 mg)
+  is implemented correctly. Atropine appears twice in different units (mcg/kg and
+  mg/kg) but the two are numerically identical.
+
+### F20 — Discontinuity at 5.0 years
+
+`aplsWeight` switches formula at `yr <= 5` using **fractional** age, so a child
+one month past their fifth birthday jumps from 18 kg to 22.3 kg (+24 %). Using
+fractional age smooths the curve *within* each band, which is defensible, but the
+band boundary needs to move to `< 6` (APLS applies `3 × age + 7` from 6 years) or
+the two branches need blending.
+
+### Adult drug table
+
+- **F18 — Atropine maximum stated as 6 mg**, both in the table
+  ("Min 0.6 mg … Max 6 mg") and on the Bradycardia page ("repeat to max 6 mg").
+  ANZCOR/ALS caps bradycardia treatment at 3 mg. Internally consistent, externally
+  out of step.
+- **F21 — Propofol contradicts itself**: infusion range 25–75 mcg/kg/min, note says
+  "TIVA: typically 50–150 mcg/kg/min".
+- **Isoprenaline 0.05–0.5 mcg/kg/min** (3.5–35 mcg/min at 70 kg) is well above the
+  usual 1–10 mcg/min. The Bradycardia page's recipe (1 mg in 50 mL at 0–60 mL/hr =
+  up to 20 mcg/min) is consistent with the table but equally high.
+- **Fibrinogen concentrate 70 mg/kg** (4.9 g at 70 kg) is the congenital-deficiency
+  dose; 25–50 mg/kg is usual in acquired hypofibrinogenaemia.
+- **Digoxin and gentamicin** should be dosed on IBW/lean weight; gentamicin's note
+  says "Use IBW if obese" but the calculation uses entered TBW with no adjustment,
+  and the tab's own IBW display is not wired to it.
+- **PCC "Max 3000 units"** is in the note only, with no `maxDose` field — same
+  pattern as **F3**.
+- Infusion columns are deliberately passed `wt = null`
+  (`renderDrugTable`, `index.html:2823`) so they are never weight-calculated. That's a
+  reasonable choice, but it makes the `mcg/kg/hr` and `units/kg/hr` branches of
+  `ddFmtRange` dead code and means bolus and infusion columns behave differently
+  without explanation.
+- Cefazolin's fixed dose (`2-3 g`) is hidden whenever `doseWt` is present, because
+  `displayDose = d.doseWt ? d.doseWt : d.dose`.
+- **What is correct:** the mg/mL concentrations, the cefazolin weight-banded cap
+  (2 g / 3 g at 100 kg), and the antibiotic maxima (ceftriaxone 4 g, gentamicin
+  320 mg, vancomycin 3 g, clindamycin 900 mg, meropenem 2 g, metronidazole 500 mg,
+  fluconazole 400 mg, cefuroxime 1.5 g) all check out.
+
+### Emergency algorithms (reviewed as dose content, not as calculators)
+
+Generally accurate and well-referenced. Verified correct:
+
+- Magnesium **10 mmol = 5 mL of 49.3 %** — arithmetically exact (493 mg/mL × 5 mL =
+  2465 mg ÷ 246.5 g/mol = 10 mmol), and consistent across all three pages that
+  mention it.
+- High-dose insulin euglycaemia therapy: 70 u bolus ≈ 1 u/kg, then 100 u in 50 mL at
+  35 mL/hr = 1 u/kg/hr — standard.
+- Dantrolene 2.5 mg/kg → 175 mg → 9 vials at 20 mg/vial; max 10 mg/kg.
+- Intralipid 1.5 mL/kg bolus, 15 mL/kg/hr infusion, max 12 mL/kg; adrenaline
+  ≤1 mcg/kg; avoid vasopressin — matches AAGBI.
+- ANZAAG anaphylaxis grading and the 10–20 / 100–200 mcg / 1 mg adrenaline ladder.
+- Phenytoin 20 mg/kg at ≤50 mg/min; flumazenil 0.2 mg to 1 mg; naloxone 100 mcg.
+
+Points to address:
+
+- **F23** — Dantrolene and Intralipid show **hard-coded "70 kg adult"** worked
+  examples (`index.html:1030, 1038, 1103`). The app has a global patient weight; the
+  two most time-critical weight-based doses in it should use it.
+- **Labetalol is filed under "Alpha-blocker"** on the Hypertension page, alongside
+  phentolamine. It is a combined α/β-blocker with a ~1:7 α:β ratio. The same panel
+  correctly warns "always give alpha-blocker before beta-blocker" for
+  phaeochromocytoma — where relying on labetalol as *the* alpha-blocker is exactly
+  the error that warning exists to prevent.
+- The Intralipid panel says "Continue until haemodynamically stable" beside "Max
+  dose: 12 mL/kg"; after three boluses the infusion can only run ~30 minutes before
+  the cumulative maximum is reached. Worth stating. The 2023 AAGBI option to double
+  the infusion rate to 30 mL/kg/hr is not mentioned.
+- Mannitol is 0.25–1 g/kg on one page and 0.25–2 g/kg on another.
+
+### Regional anaesthesia (F22)
+
+Block LA volumes are static strings with **no weight input and no link to the LA
+maximum-dose calculator**. Volumes are reasonable for an average adult but:
+
+- **Fascia iliaca "30–40 mL"** carries no max-dose caveat. 40 mL of 0.5 %
+  bupivacaine is 200 mg, above the 150 mg ceiling the app's own LA calculator
+  enforces.
+- The "Do not exceed max dose" caveat appears on ESP, rectus sheath, PECS and ankle
+  blocks but not on interscalene, supraclavicular, costoclavicular, axillary,
+  femoral, adductor canal, popliteal or fascia iliaca.
+- Thoracic paravertebral "15–20 mL **per level**" invites multiplication without a
+  cumulative check.
+- No paediatric adjustment anywhere in this section.
+
+The descriptive content (sonoanatomy, technique, risks, phrenic palsy rates,
+pneumothorax risk) is accurate and well-written.
+
+### Anticoagulants and POCUS
+
+- The neuraxial timing table is consistent with AAGBI 2013 on every row checked
+  (LMWH 12/24 h, UFH 4 h, clopidogrel 7 d, warfarin INR <1.4, CrCl-banded
+  dabigatran). It carries **no citation or version date** — worth adding, since this
+  is the kind of table that is revised.
+- Gastric POCUS uses the Perlas 3-point grading correctly with the 1.5 mL/kg
+  threshold, and is properly attributed. No calculator, no defects found.
+
+---
+
+## 9. Suggested order of work
+
+**Before anything else — do not fix in place without tests.** These calculators
+have no test coverage. I'd suggest extracting the pure functions
+(`aplsWeight`, `getIBW`, `calcDose`, `parseDoseRange`, the opioid factor tables,
+`renderAirway`'s sizing logic) into a small module with a table-driven test file, so
+each fix below can be pinned by a case. Every worked example in this report is a
+ready-made test case.
+
+**Tier 1 — before further clinical use**
+
+1. **F1** Bound `aplsWeight` at 12 years; return `null` above it and show "use actual
+   weight". Clamp `pd-yr`/`pd-mo` on input.
+2. **F2** Change adenosine in the antiarrhythmic table to 6 mg → 12 mg fixed; move the
+   0.3–0.6 mg/kg flow-arrest dose to the neuro page only, with its indication.
+3. **F3** Move every "Max X" out of `note` into a real `maxDose` field; add a lint
+   check that fails if a note matches `/max/i` and no `maxDose` exists.
+4. **F4** Change `calc ?? wt` to `Math.min(calc, wt)`; refuse to compute IBW below
+   152 cm and fall back to actual weight.
+
+**Tier 2 — before the next release**
+
+5. **F5** Bound the airway calculator to 1–12 years; use weight-based rules for
+   neonates/infants; fix the weight→age inversion or drop it.
+6. **F6/F7/F8** Single shared opioid factor table with a cited source; add methadone
+   to oMEDD; fix the buprenorphine footnote; add the cross-tolerance warning to the
+   oMEDD tab.
+7. **F9** Implement 4-2-1 properly and give the row a unit.
+8. **F10/F11/F12/F17/F18** Reconcile the adult table against the emergency pages,
+   taking the emergency-page value in each case.
+9. **F13** Real validation on every numeric input.
+
+**Tier 3 — consistency and polish**
+
+10. **F14/F19** Merge the two body-weight calculators into one function; guard Devine.
+11. **F15/F24/F25** Fix the DOB borrow, normalise the age display, parse dates as local.
+12. **F16/F20/F21/F22/F23** Round-trip methadone, move the 5-year boundary, reconcile
+    propofol, add weight-awareness to regional and to dantrolene/Intralipid.
+
+---
+
+## 10. What was checked and found correct
+
+Recorded so that a future audit doesn't repeat the work:
+
+- Devine, Janmahasatian and adjusted-body-weight formulae are all transcribed
+  correctly (the defects are in their guards and in the `TBW ≤ IBW` branch).
+- LA cumulative-toxicity-fraction logic — additive fractions, `min(mg/kg × wt, ceiling)`,
+  and the "safe volume remaining" calculation — is sound, and the on-screen
+  explanation of it is accurate. Lignocaine 3/200, lignocaine+adrenaline 7/500 and
+  bupivacaine 2/150 all match standard limits.
+- Every paediatric concentration→volume conversion.
+- The paracetamol IV weight-banded rule.
+- LMA sizes and cuff volumes across all seven weight bands.
+- Antibiotic maximum doses and the cefazolin weight-banded cap.
+- Magnesium 49.3 % arithmetic, on all three pages that use it.
+- Dantrolene vial arithmetic; Intralipid regimen; HIET regimen; ANZAAG adrenaline
+  ladder; ALS energy levels.
+- Anticoagulant/neuraxial intervals against AAGBI 2013.
+- Perlas gastric grading.
+- Opioid factors for oral morphine, oxycodone, hydromorphone, tapentadol, tramadol
+  and IV morphine agree between both tools and with common practice.
+
+---
+
+*Prepared as a code and content audit. Clinical dose values flagged here should be
+confirmed against your institution's formulary and the current ANZCA / ANZCOR / APLS
+/ AAGBI source documents before any change is made.*
