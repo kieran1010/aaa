@@ -140,16 +140,84 @@ pending('F6', 'the two opioid tools must use the same factor for every shared dr
   if (bad.length) throw new Error(`disagree: ${bad.map(p => p[1]).join(', ')}`);
 });
 
-pending('F7', 'the oMEDD footnote must match the oMEDD code', () => {
-  const bup = D.OMEDD_DRUGS.find(o => o.name === 'Buprenorphine patch').factor;
-  const m = D.SRC.match(/Buprenorphine patch \(mcg\/hr\)\s*&times;\s*([\d.]+)|Buprenorphine patch \(mcg\/hr\)\s*×\s*([\d.]+)/);
-  if (!m) throw new Error('footnote not found');
-  const shown = parseFloat(m[1] || m[2]);
-  if (Math.abs(shown - bup) > 1e-9) throw new Error(`footnote says ${shown}, code uses ${bup}`);
-});
-
 test('CURRENT: methadone is absent from the oMEDD list (F8)', () => {
   is(D.OMEDD_DRUGS.some(o => /methadone/i.test(o.name)), false);
+});
+
+/* ---- the adult table must agree with the app's own emergency algorithms ---- */
+
+// Every row here was a real disagreement found in the audit (F10, F11, F17,
+// F18, F21). The emergency pages were the better-sourced side each time, so
+// these assert the table has been brought into line and stays there.
+test('FIXED F18: atropine maximum is the ANZCOR 3 mg, in both places', () => {
+  const a = D.ADULT_DRUGS.find(d => d.name === 'Atropine');
+  if (/max\s*6\s*mg/i.test(a.notes)) throw new Error(`table still says 6 mg: ${a.notes}`);
+  if (!/3 mg/.test(a.notes)) throw new Error(`table does not state 3 mg: ${a.notes}`);
+  if (/repeat to max 6 mg/i.test(D.SRC)) throw new Error('Bradycardia page still says 6 mg');
+});
+
+test('FIXED F10: aminophylline load is 5 mg/kg, matching the Bronchospasm page', () => {
+  const a = D.ADULT_DRUGS.find(d => d.name === 'Aminophylline');
+  is(a.bolusLo, 5, 'was 10 mg/kg (700 mg at 70 kg vs the page\'s 400 mg):');
+  is(a.maxDose, 500);
+});
+
+test('FIXED F17: IV salbutamol is ~250 mcg, matching the Bronchospasm page', () => {
+  const a = D.ADULT_DRUGS.find(d => d.name === 'Salbutamol');
+  is(a.bolusLo, 4, 'was 10 mcg/kg = 700 mcg at 70 kg:');
+  is(a.maxDose, 250);
+});
+
+test('FIXED F17: esmolol load is 0.5-1 mg/kg', () => {
+  const e = D.ADULT_DRUGS.find(d => d.name === 'Esmolol');
+  is(e.bolusLo, 0.5); is(e.bolusHi, 1);
+});
+
+test('FIXED F17: ephedrine is titrated in mg, not dosed per kg', () => {
+  const e = D.ADULT_DRUGS.find(d => d.name === 'Ephedrine');
+  if (e.bolusUnit.indexOf('/kg') !== -1) throw new Error(`still per-kg: ${e.bolusUnit}`);
+  is(e.bolusHi, 9, 'matches the 9 mg on the Hypotension and Bradycardia pages:');
+});
+
+test('FIXED F17: metoprolol values match their own note', () => {
+  const m = D.ADULT_DRUGS.find(d => d.name === 'Metoprolol');
+  is(m.bolusLo, 2.5); is(m.bolusHi, 15);
+});
+
+test('FIXED F21: the propofol infusion range matches its own note', () => {
+  const p = D.ADULT_DRUGS.find(d => d.name === 'Propofol');
+  is(p.infLo, 50); is(p.infHi, 150);
+  const m = p.notes.match(/TIVA (\d+)-(\d+)/);
+  if (!m) throw new Error('note no longer states a TIVA range');
+  is(p.infLo, parseInt(m[1], 10), 'range vs note, low:');
+  is(p.infHi, parseInt(m[2], 10), 'range vs note, high:');
+});
+
+test('FIXED F11: the sugammadex note has the block depths the right way round', () => {
+  const n = D.PD_DRUGS.find(d => d.n === 'Sugammadex').note;
+  if (/Deep: 16/.test(n)) throw new Error('still says deep = 16 mg/kg');
+  if (!/[Mm]oderate.*2 mg\/kg/.test(n)) throw new Error(`moderate should be 2 mg/kg: ${n}`);
+  if (!/deep.*4 mg\/kg/.test(n))        throw new Error(`deep should be 4 mg/kg: ${n}`);
+  if (!/16 mg\/kg/.test(n))             throw new Error('16 mg/kg rescue dose missing');
+});
+
+test('FIXED F7: the oMEDD footnote lists the factors the code actually uses', () => {
+  const m = D.SRC.match(/Conversion factors:([^<]*)/);
+  if (!m) throw new Error('footnote not found');
+  const shown = m[1];
+  [['Buprenorphine patch', 2.4], ['Fentanyl patch', 2.4], ['IV/SC oxycodone', 2], ['Oral tapentadol', 0.4]]
+    .forEach(([name, factor]) => {
+      const code = D.OMEDD_DRUGS.find(o => o.name === name).factor;
+      is(code, factor, `${name} code factor:`);
+      if (!new RegExp(name.replace(/[/]/g, '[/]') + '[^0-9]*' + String(factor).replace('.', '[.]')).test(shown)) {
+        throw new Error(`footnote does not show ${name} x ${factor}: ${shown.trim()}`);
+      }
+    });
+});
+
+test('FIXED F8: the oMEDD tab says methadone is excluded', () => {
+  if (!/Methadone is not included/.test(D.SRC)) throw new Error('exclusion notice missing');
+  if (!/Reduce by 25&ndash;50% when rotating/.test(D.SRC)) throw new Error('cross-tolerance warning missing');
 });
 
 /* ------------------- concentration / unit sanity across paeds ------------- */

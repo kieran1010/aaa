@@ -3,7 +3,7 @@
 **Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
-**Status:** **F1, F2, F3, F4, F12, F24 and F30 are FIXED** (Addenda C and D). The remaining findings are open.
+**Status:** **19 findings fixed** — F1–F5, F7–F13, F17, F18, F21, F24, F30 (Addenda C, D, E). **F27 retracted** (Addendum B). The rest are open; F6, F28 and F29 need a clinical decision.
 **Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
 **Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
@@ -63,23 +63,23 @@ examples are in §9.
 | **F2** | ~~C1~~ **FIXED** | Adult drugs | Adenosine carried the 0.3–0.5 mg/kg neurovascular flow-arrest dose. Now the fixed 6 mg → 12 mg SVT dose. *(Addendum C)* |
 | **F3** | ~~C1~~ **FIXED** | Paed drugs | 14 drugs stated "Max X" in prose that was never enforced. All 14 now carry a `maxDose` field, and a lint test fails if a new one appears. *(Addendum C)* |
 | **F4** | ~~C1~~ **FIXED** | LA max dose | IBW always overrode actual weight, raising the ceiling 36–41 % in underweight adults. Now `min(IBW, TBW)`, and Devine is not evaluated below 152.4 cm. *(Addendum C)* |
-| **F5** | **C2** | Paed airway | ETT size and depth are wrong at both ends: neonate → 4.0 mm / 12 cm; 30–50 kg with weight-only entry → oversized by ~1–1.5 mm |
+| **F5** | ~~C2~~ **FIXED** | Paed airway | Weight-banded sizing under 1 y (term neonate 3.5 mm at 9.5 cm, was 4.0 mm at 12 cm); weight→age inversion corrected; refused above 12 y. *(Addendum E)* |
 | **F6** | **C2** | Opioids | The conversion tab and the oMEDD tab disagree by **2×** for IV fentanyl and **50 %** for IV oxycodone |
-| **F7** | **C2** | oMEDD | On-screen footnote says buprenorphine patch **× 25**; the code uses **× 2.4** |
-| **F8** | **C2** | oMEDD | **Methadone is absent** from the drug list; the methadone branch in the code is unreachable |
-| **F9** | **C2** | Paed drugs | 4-2-1 maintenance row returns **4 mL/kg/hr flat** — 180 mL/hr for a 45 kg child instead of 85 |
-| **F10** | **C2** | Adult drugs | Aminophylline **10 mg/kg** (700 mg at 70 kg); the app's own Bronchospasm page says 400 mg |
-| **F11** | **C2** | Paed drugs | Sugammadex note reverses the block depths: "Deep: 16 mg/kg; moderate: 4 mg/kg" |
+| **F7** | ~~C2~~ **FIXED** | oMEDD | Footnote now lists the factors the code actually uses. *(Addendum E)* |
+| **F8** | ~~C2~~ **FIXED** | oMEDD | The tab now states that methadone is excluded and why, instead of silently scoring it zero. *(Addendum E)* |
+| **F9** | ~~C2~~ **FIXED** | Paed drugs | 4-2-1 is now Holliday-Segar — 85 mL/hr for a 45 kg child, was 180. *(Addendum E)* |
+| **F10** | ~~C2~~ **FIXED** | Adult drugs | Aminophylline 10 → 5 mg/kg, matching the app's own Bronchospasm page. *(Addendum E)* |
+| **F11** | ~~C2~~ **FIXED** | Paed drugs | Sugammadex block depths were reversed; now moderate 2 / deep 4 / rescue 16 mg/kg. *(Addendum E)* |
 | **F12** | ~~C2~~ **FIXED** | Paed drugs | IM adrenaline now lists 1:1000 first. *(Addendum C)* |
-| **F13** | **C2** | All | **No input validation anywhere** — `min`/`max` attributes are inert without a form |
+| **F13** | ~~C2~~ **FIXED** | All | Real input validation — clamps on blur, flags while typing. The min/max attributes were inert. *(Addendum E)* |
 | **F14** | **C3** | Body weights | The two body-weight calculators disagree when TBW < IBW (45 kg patient → 45 kg vs 61 kg) |
 | **F15** | **C3** | Global | Age-from-DOB is off by one month around the birthday; future DOB gives a negative age |
 | **F16** | **C3** | Opioids | Methadone conversion does not round-trip — 7.5 mg → 30 mg oMEDD → 5 mg (−33 %) |
-| **F17** | **C3** | Adult drugs | Salbutamol IV, esmolol and ephedrine each disagree with the emergency algorithm pages |
-| **F18** | **C3** | Adult drugs | Atropine max stated as **6 mg** (table and Bradycardia page); ANZCOR max is 3 mg |
+| **F17** | ~~C3~~ **FIXED** | Adult drugs | Salbutamol, esmolol, ephedrine and metoprolol reconciled with the emergency pages. *(Addendum E)* |
+| **F18** | ~~C3~~ **FIXED** | Adult drugs | Atropine maximum 6 → 3 mg (ANZCOR 11.9), in both the table and the Bradycardia page. *(Addendum E)* |
 | **F19** | **C3** | Body weights | Devine IBW is applied below its valid range — 100 cm gives **0–2.6 kg** |
 | **F20** | **C3** | Paed weight | 4-kg discontinuity at exactly 5.0 years (18 kg → 22.3 kg) |
-| **F21** | **C3** | Adult drugs | Propofol infusion range (25–75 mcg/kg/min) contradicts its own note (50–150) |
+| **F21** | ~~C3~~ **FIXED** | Adult drugs | Propofol infusion range now matches its own note (50–150 mcg/kg/min). *(Addendum E)* |
 | **F22** | **C3** | Regional | Block LA volumes are static text with no weight input and no link to the LA calculator |
 | **F23** | **C3** | Emergency | Dantrolene and Intralipid show hard-coded 70 kg examples, ignoring the global patient card |
 | **F24** | ~~C4~~ **FIXED** | Paed | Age now normalises on entry — 17 months resolves to 1y 5m in the fields and the display, on both cards. *(Addendum D)* |
@@ -1265,3 +1265,144 @@ fails silently in the browser.
 | Logic tests | 41 passed, 0 failed, 13 pending |
 | Data tests | 16 passed, 0 failed, 3 pending |
 | DOM tests | 16 passed, 0 failed |
+
+---
+
+# Addendum E — Tier 2
+
+**7 September 2026.** F5, F7, F8, F9, F10, F11, F13, F17, F18 and F21 fixed.
+
+## E.1 Airway sizing (F5)
+
+Cole's formulae were being extrapolated past both ends of their range.
+
+**Under 1 year** is now a weight-banded lookup with depth = weight + 6 cm:
+
+| Weight | Uncuffed | Cuffed | Was |
+|---|---|---|---|
+| <1 kg | 2.5 | — | 4.0 mm at 12 cm |
+| 1–2 kg | 3.0 | — | 4.0 mm at 12 cm |
+| 2–3 kg | 3.0 | 3.0 | 4.0 mm at 12 cm |
+| >3 kg (term) | 3.5 | 3.0 | 4.0 mm at 12 cm |
+
+A term 3.5 kg neonate now gets **3.5 mm at 9.5 cm** instead of 4.0 mm at 12 cm.
+12 cm at the lip in a neonate is frankly endobronchial.
+
+**The weight → age fallback** inverted the *infant* formula and read the result as
+years. Each APLS band is now inverted on its own terms:
+
+| Weight | Was read as | Now | ETT was → now |
+|---|---|---|---|
+| 20 kg | 6.0 y | 4.3 y | 5.5 → 5.5 mm |
+| 30 kg | 11.0 y | 7.7 y | **7.0 → 6.0 mm** |
+| 40 kg | 16.0 y | 11.0 y | **8.0 → 7.0 mm** |
+| 50 kg | 21.0 y | *refused* | 9.5 mm → refused |
+
+Sizing is also refused above 12 years, where it previously extrapolated to a
+**14 mm** tube, and the output now states its basis — sized by age, sized by
+weight, or age estimated from weight.
+
+The infant band table is marked **CLINICAL VALUES — confirm against your
+institution's own guideline** in the source. Cole's itself is unchanged above 1
+year.
+
+**Caught while testing this:** `ageKnown` was `(yr > 0 || mo > 0)`, so a term
+neonate entered as 0y 0m counted as *no age at all* and fell through to the
+estimate-from-weight path, which then refused it. Zero is a valid age; the test
+is now whether the field was filled in.
+
+## E.2 Maintenance fluid (F9)
+
+Holliday-Segar, properly: 4 mL/kg/hr for the first 10 kg, 2 for the next 10, 1
+beyond. The row shows "4-2-1 rule" and a whole mL/hr rate.
+
+| Weight | Was | Now |
+|---|---|---|
+| 10 kg | 40 | 40 |
+| 20 kg | **80** | 60 |
+| 30 kg | **120** | 70 |
+| 45 kg | **180** | 85 |
+
+## E.3 The adult table now agrees with the app's own emergency pages
+
+In every one of these the emergency algorithm was the better-sourced side, so the
+table was brought to it — not the reverse.
+
+| Drug | Table was (70 kg) | Now | Emergency page says |
+|---|---|---|---|
+| Atropine max | 6 mg | **3 mg** | 3 mg *(ANZCOR 11.9)* |
+| Aminophylline | 700 mg (10 mg/kg) | **350 mg** (5 mg/kg, cap 500) | 400 mg over 15 min |
+| Salbutamol IV | 700 mcg (10 mcg/kg) | **250 mcg** (4 mcg/kg, cap 250) | 250 mcg slow push |
+| Esmolol load | 70–140 mg (1–2 mg/kg) | **35–70 mg** (0.5–1 mg/kg) | 10 mg boluses |
+| Ephedrine | 17.5 mg (0.25 mg/kg) | **3–9 mg** titrated | 9 mg boluses |
+| Metoprolol | 1–5 mg | **2.5–15 mg** | 2.5 mg boluses, max 15 mg |
+| Propofol infusion | 25–75 mcg/kg/min | **50–150** | its own note said 50–150 |
+
+Aminophylline and salbutamol also gained maintenance infusion rates, which they
+previously lacked entirely.
+
+**F11 — the sugammadex note had the block depths reversed.** It read "Deep: 16
+mg/kg; moderate: 4 mg/kg"; it now reads moderate (T2 present) 2 mg/kg, deep
+(PTC 1–2) 4 mg/kg, immediate rescue 16 mg/kg — matching the app's own Failure to
+Wake page.
+
+## E.4 oMEDD (F7, F8)
+
+- **The footnote now lists the factors the code actually uses.** It said
+  buprenorphine patch **× 25** where the code used 2.4, and omitted IV/SC
+  oxycodone and tapentadol entirely.
+- **The tab now says methadone is excluded**, in a highlighted panel, with the
+  reason (ANZCA excludes methadone, transmucosal fentanyl and neuraxial opioids
+  because their pharmacokinetics are complex and variable) and where to go
+  instead. Previously a patient on methadone silently scored zero for it.
+- The **cross-tolerance warning** that the Opioid Conversion tab already carried
+  is now on the oMEDD tab too.
+
+The **factors themselves are unchanged** — F6, F28 and F29 remain open, see E.6.
+
+## E.5 Input validation (F13)
+
+The `min`/`max` attributes were decorative: they bind only on form submission or
+an explicit `checkValidity()` call, and this page has neither. A weight of 9000
+or an age of 400 went straight through `parseFloat` and was dosed on.
+
+Guards now clamp on **change** (blur or Enter), never on **input** — clamping
+mid-keystroke would rewrite "1" to "10" while someone types "15". While typing,
+an out-of-range value is flagged with a red border and a tooltip but left alone.
+Clamping re-fires the dependent calculations, so the displayed doses follow the
+clamped value.
+
+Attached to all 16 bounded numeric inputs. The months fields lost their inert
+`max="11"` and gained real bounds, since 17 months is now a legitimate entry that
+resolves to 1y 5m.
+
+## E.6 Still open after Tier 2
+
+**F6 needs your decision.** The two opioid tools disagree by 2× on IV fentanyl
+(0.1 vs 0.2 per mcg) and 34 % on IV oxycodone. Making them agree means choosing
+which table to adopt, and ANZCA's value for parenteral fentanyl (0.3) matches
+neither. That is a clinical call, not a refactor.
+
+**F28/F29 remain provisional and unapplied** — tramadol and tapentadol factors.
+They rest on search-derived evidence, which is what produced the retracted F27,
+and need a read of ANZCA PS01(PM) Appendix 2.
+
+Also open: F14 (the two body-weight calculators diverge when TBW < IBW), F15
+(DOB borrow), F16 (methadone round-trip), F19 (Devine below range in the
+body-weight boxes — the LA path is fixed, these two displays are not), F20 (5–6 y
+over-estimate), F22 (regional volumes have no weight input), F23 (dantrolene and
+Intralipid hard-code 70 kg), F25 (UTC date parsing), F26 (IM ketamine
+concentration).
+
+## E.7 Verification
+
+| | |
+|---|---|
+| Syntax | 2,526 lines parse; all 49 inline handlers resolve |
+| Equivalence | 12,065 checks against the live `index.html`, 0 mismatches |
+| Logic | 47 passed, 0 failed, 10 pending |
+| Data | 26 passed, 0 failed, 2 pending |
+| DOM | 28 passed, 0 failed |
+
+The data suite now cross-checks the adult table against the emergency-page text
+directly, so this class of drift fails the build rather than being rediscovered.

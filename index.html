@@ -367,8 +367,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <div class="slabel">Patient</div>
     <div class="row" style="margin-bottom:12px">
       <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="syncAge('pd')"></div>
-      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" style="width:70px" oninput="syncAge('pd')"></div>
-      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.5" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
+      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" max="600" style="width:70px" oninput="syncAge('pd')"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.4" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
     </div>
     <div id="pd-wt-summary" style="display:none">
       <div class="ibw-row" style="margin-top:0">
@@ -560,7 +560,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div class="field">
         <label>Months</label>
-        <input type="number" id="g-mo" placeholder="0" min="0" style="width:55px" oninput="syncAge('g')">
+        <input type="number" id="g-mo" placeholder="0" min="0" max="1440" style="width:55px" oninput="syncAge('g')">
       </div>
     </div>
     <div id="g-bw-boxes" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
@@ -1181,7 +1181,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div style="background:#7f1d1d;border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:#fca5a5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">Treatment if Haemodynamically Compromised</div>
-        <div style="font-size:12px;color:#fee2e2;line-height:1.7"><div style="margin-bottom:3px">Atropine <strong>600 mcg IV</strong> (repeat to max 6 mg) &bull; Glycopyrrolate 200 mcg IV</div><div style="margin-bottom:3px">Ephedrine <strong>9 mg</strong> boluses titrated</div><div style="margin-bottom:3px">Adrenaline infusion: 5 mg in 50 ml saline, infuse 0&ndash;20 ml/hr</div><div style="margin-bottom:3px">Isoprenaline: 1 mg (5 vials) in 50 ml, infuse 0&ndash;60 ml/hr</div><div style="margin-bottom:3px">External pacing if refractory: set rate 60/min, increase mA until capture (usually 65&ndash;100 mA), confirm pulse</div></div>
+        <div style="font-size:12px;color:#fee2e2;line-height:1.7"><div style="margin-bottom:3px">Atropine <strong>600 mcg IV</strong> (repeat every 3&ndash;5 min to a total of 3 mg) &bull; Glycopyrrolate 200 mcg IV</div><div style="margin-bottom:3px">Ephedrine <strong>9 mg</strong> boluses titrated</div><div style="margin-bottom:3px">Adrenaline infusion: 5 mg in 50 ml saline, infuse 0&ndash;20 ml/hr</div><div style="margin-bottom:3px">Isoprenaline: 1 mg (5 vials) in 50 ml, infuse 0&ndash;60 ml/hr</div><div style="margin-bottom:3px">External pacing if refractory: set rate 60/min, increase mA until capture (usually 65&ndash;100 mA), confirm pulse</div></div>
       </div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">Drug Overdose Management</div>
@@ -1720,7 +1720,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div id="omedd-total" style="font-size:22px;font-weight:700;color:var(--text)">0 mg/day</div>
       <div id="omedd-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none"></div>
     </div>
-    <div style="margin-top:10px;font-size:10px;color:var(--text3)">Conversion factors: Oral morphine 1 • Oral oxycodone 1.5 • Oral hydromorphone 5 • Oral codeine 0.15 • Oral tramadol 0.1 • IV/SC morphine 3 • IV/SC hydromorphone 15 • IV fentanyl (mcg) × 0.1 • Buprenorphine patch (mcg/hr) × 25 • Fentanyl patch (mcg/hr) × 2.4</div>
+    <div style="margin-top:10px;padding:8px 10px;background:#2d1f0f;border:1px solid #7f5f1d;border-radius:5px;font-size:11px;color:#fcd34d"><strong>Methadone is not included.</strong> ANZCA excludes methadone, transmucosal fentanyl and neuraxial opioids from oMEDD because their pharmacokinetics are complex and variable. If the patient takes any of these, this total understates their exposure &mdash; use the Ripamonti table on the Opioid Conversion tab and seek specialist input.<br>Conversion is a guide only: giving a calculated &lsquo;equivalent&rsquo; dose of a replacement opioid may cause overdose. Reduce by 25&ndash;50% when rotating.</div>
+    <div style="margin-top:10px;font-size:10px;color:var(--text3)">Conversion factors: Oral morphine 1 • Oral oxycodone 1.5 • Oral hydromorphone 5 • Oral codeine 0.15 • Oral tramadol 0.1 • IV/SC morphine 3 • IV/SC hydromorphone 15 • IV/SC fentanyl (mcg) × 0.1 • IV/SC oxycodone × 2 • Oral tapentadol × 0.4 • Buprenorphine patch (mcg/hr) × 2.4 • Fentanyl patch (mcg/hr) × 2.4</div>
   </div>
 
     
@@ -1883,6 +1884,57 @@ function calcAgeFromDOB() {
   document.getElementById('g-mo').value = mo;
   syncAge('g');
 }
+
+/* ---- Numeric input guards ------------------------------------------------
+   The min/max attributes on these fields were decorative: they only bind on
+   form submission or an explicit checkValidity() call, and this page has
+   neither, so every value went straight through parseFloat. A weight of 9000
+   or an age of 400 was accepted and dosed on.
+
+   Clamping happens on 'change' (blur or Enter), never on 'input' - clamping
+   mid-keystroke would rewrite "1" to "10" while someone is typing "15". While
+   typing, an out-of-range value is only flagged. ---------------------------- */
+
+function flagOutOfRange(el) {
+  var v = parseFloat(el.value);
+  var lo = el.min === '' ? null : parseFloat(el.min);
+  var hi = el.max === '' ? null : parseFloat(el.max);
+  var bad = el.value !== '' && (isNaN(v) || (lo !== null && v < lo) || (hi !== null && v > hi));
+  el.style.borderColor = bad ? 'var(--red)' : '';
+  el.title = bad
+    ? 'Out of range' + (lo !== null && hi !== null ? ' (' + lo + '-' + hi + ')' : '')
+    : '';
+  return bad;
+}
+
+function clampInput(el) {
+  if (el.value === '') { flagOutOfRange(el); return; }
+  var v = parseFloat(el.value);
+  var lo = el.min === '' ? null : parseFloat(el.min);
+  var hi = el.max === '' ? null : parseFloat(el.max);
+  if (isNaN(v)) { el.value = ''; }
+  else {
+    if (lo !== null && v < lo) v = lo;
+    if (hi !== null && v > hi) v = hi;
+    if (String(v) !== el.value) el.value = v;
+  }
+  flagOutOfRange(el);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function installInputGuards() {
+  var els = document.querySelectorAll('input[type="number"][min], input[type="number"][max]');
+  Array.prototype.forEach.call(els, function (el) {
+    if (el.dataset.guarded) return;          // idempotent
+    el.dataset.guarded = '1';
+    el.addEventListener('input',  function () { flagOutOfRange(el); });
+    el.addEventListener('change', function () { clampInput(el); });
+  });
+}
+// Called directly rather than on DOMContentLoaded: this script is the last
+// thing in <body>, so every input already exists, and deferring left the
+// fields unguarded for the window between parse and DOMContentLoaded.
+installInputGuards();
 
 /* ---- Age: one source of truth, synced both ways, always normalised -------
    Either card may be typed into. Whichever is edited, the value is normalised
@@ -2307,7 +2359,7 @@ const PD_CATS = {
     { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], maxDose: 500, note: 'Min 0.1 mg; max 0.5 mg' },
     { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], maxDose: 400, note: 'Max 0.4 mg' },
     { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], maxDose: 5000, note: 'Max 5 mg; with glycopyrrolate' },
-    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Deep: 16 mg/kg; moderate: 4 mg/kg' },
+    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Moderate (T2 present) 2 mg/kg; deep (PTC 1-2) 4 mg/kg; immediate rescue 16 mg/kg' },
   ],
   'Analgesia (IV)': [
     { n: 'Fentanyl',                 doseStr: '1',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], note: '' },
@@ -2830,7 +2882,7 @@ const DRUG_CATS = {
     { name:'Adrenaline',             conc:'40 mcg/mL',    bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:0.01, infHi:1,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Dobutamine',             conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:2.5,  infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
     { name:'Dopamine',               conc:'4 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:1,    infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Ephedrine',              conc:'6 mg/mL',      bolusLo:0.25, bolusHi:0.25, bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'' },
+    { name:'Ephedrine',              conc:'6 mg/mL',      bolusLo:3,    bolusHi:9,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'3-9 mg boluses titrated to effect. Tachyphylaxis with repeated doses' },
     { name:'Isoprenaline',           conc:'2 mcg/mL',     bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.5,  infUnit:'mcg/kg/min',    notes:'' },
     { name:'Levosimendan',           conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.2,  infUnit:'mcg/kg/min',    notes:'Cardiogenic shock. Load 6-12 mcg/kg over 10 min (optional). Run for 24 hr' },
     { name:'Metaraminol',            conc:'0.5 mg/mL',    bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:0.5,  infHi:2,    infUnit:'mcg/kg/min',    notes:'' },
@@ -2842,12 +2894,12 @@ const DRUG_CATS = {
   'Antihypertensives & rate control': [
     { name:'Clonidine',              conc:'',             bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'' },
     { name:'Digoxin',                conc:'50 mcg/mL',    bolusLo:8,    bolusHi:12,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Rate control in AF. Loading dose in divided doses. Renal dose adjustment' },
-    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:1,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'Load 0.5-1 mg/kg over 1 min, then infuse. Intraoperatively often titrated as 10-20 mg boluses instead' },
     { name:'GTN',                    conc:'100 mcg/mL',   bolusLo:0.5,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Hydralazine',            conc:'',             bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Acute hypertension, obstetrics. Give slowly; onset 10-20 min' },
     { name:'Labetalol',              conc:'1 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:5,    infHi:50,   infUnit:'mcg/kg/min',    notes:'0.25-0.5 mg/kg bolus' },
     { name:'Magnesium',              conc:'',             bolusLo:50,   bolusHi:50,   bolusUnit:'mg/kg',      infLo:1,    infHi:2,    infUnit:'g/hr',          notes:'PET: 4 g over 20 min then 1 g/hr' },
-    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:1,    bolusHi:5,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Give 1-2 mg slow IV, repeat to 5 mg. Rate control in AF' },
+    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:2.5,  bolusHi:15,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'2.5 mg boluses slow IV, repeat to a max of 15 mg total. Rate control in AF' },
     { name:'Nicardipine',            conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Controlled hypotension, hypertensive crisis' },
     { name:'Phentolamine',           conc:'600 mcg/mL',   bolusLo:1,    bolusHi:2,    bolusUnit:'mg (fixed)', infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Sodium nitroprusside',   conc:'',             bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Light-protect infusion. Monitor for cyanide toxicity if >3 mcg/kg/min or >72 hr' },
@@ -2855,7 +2907,7 @@ const DRUG_CATS = {
   'Antiarrhythmics': [
     { name:'Adenosine',              conc:'3 mg/mL',      bolusLo:6,    bolusHi:12,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'SVT: 6 mg rapid IV push into a large proximal vein + saline flush, then 12 mg, then 12 mg. NOT the 0.3-0.6 mg/kg neurosurgical flow-arrest dose - see Aneurysm Rupture (OR)' },
     { name:'Amiodarone',             conc:'50 mg/mL',     bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:5,    infHi:15,   infUnit:'mcg/kg/min',    maxDose:300,  notes:'Max 300 mg bolus. Load 300 mg IV over 20-60 min, then 900 mg over 24 hr. VT/AF' },
-    { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max 6 mg' },
+    { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max total 3 mg (ANZCOR 11.9)' },
     { name:'Lignocaine',             conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:20,   infHi:50,   infUnit:'mcg/kg/min',    notes:'Ventricular arrhythmias. Max bolus 6 mg/kg in 1 hr' },
     { name:'Sotalol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'AF/flutter. Infuse over 20 min. QTc monitoring. Avoid if renal impairment' },
   ],
@@ -2866,7 +2918,7 @@ const DRUG_CATS = {
     { name:'Ketamine',               conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:2,    bolusUnit:'mg/kg',      infLo:2,    infHi:15,   infUnit:'mcg/kg/min',    notes:'Induction 1-2 mg/kg IV, sedation/dissociation lower range' },
     { name:'Midazolam',              conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'Titrate slowly. Reduce in elderly' },
     { name:'Morphine',               conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:10,   infHi:40,   infUnit:'mcg/kg/hr',     notes:'Titrate to effect. Reduce in renal impairment' },
-    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:25,   infHi:75,   infUnit:'mcg/kg/min',    notes:'TIVA: typically 50-150 mcg/kg/min. Sedation: 5-50 mcg/kg/min' },
+    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:50,   infHi:150,  infUnit:'mcg/kg/min',    notes:'TIVA 50-150 mcg/kg/min; sedation 5-50. Reduce in the elderly and the haemodynamically compromised' },
     { name:'Remifentanil',           conc:'50 mcg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:2,    infUnit:'mcg/kg/min',    notes:'TIVA/analgosedation. Context-sensitive half-life ~3 min. No bolus recommended' },
     { name:'Thiopentone',            conc:'25 mg/mL',     bolusLo:3,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Induction. Reduce in compromised patients. ICP reduction' },
   ],
@@ -2889,8 +2941,8 @@ const DRUG_CATS = {
     { name:'Vitamin K',              conc:'10 mg/mL',     bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Warfarin reversal. Onset 6-12 hr IV. Give slowly over 20-60 min' },
   ],
   'Bronchodilators': [
-    { name:'Aminophylline',          conc:'',             bolusLo:10,   bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Loading dose over 20-30 min. Reduce if already on theophylline' },
-    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Slow IV. Neb: 2.5-5 mg' },
+    { name:'Aminophylline',          conc:'',             bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:0.5,  infHi:0.7,  infUnit:'mg/kg/hr',      maxDose:500,  notes:'Loading 5 mg/kg over 20-30 min (max 500 mg), then 0.5-0.7 mg/kg/hr. Omit or halve the load if already on theophylline - check a level' },
+    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:4,    bolusHi:4,    bolusUnit:'mcg/kg',     infLo:0.1,  infHi:0.3,  infUnit:'mcg/kg/min',    maxDose:250,  notes:'~250 mcg over 10 min (max 250 mcg), then 0.1-0.3 mcg/kg/min. Neb: 2.5-5 mg. Monitor K+ and lactate' },
   ],
   'Endocrine & metabolic': [
     { name:'Calcium chloride',        conc:'100 mg/mL',   bolusLo:5,    bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              maxDose:1000, notes:'Max 1 g. 3x more elemental calcium than gluconate. Central line preferred. Cardiac arrest, severe hypocalcaemia' },

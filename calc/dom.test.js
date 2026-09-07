@@ -121,6 +121,58 @@ test('airway sizing is stable when a weight is added to a known age', () => {
   is(p.row(/ETT uncuffed/), before, 'tube size changed when only a weight was added:');
 });
 
+/* --------------------------- F13: input guards ---------------------------- */
+
+test('F13: out-of-range values are clamped on blur', () => {
+  const p = page();
+  const el = p.d.getElementById('g-wt');
+  el.value = '9000';
+  el.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  is(el.value, '250', 'weight clamped to its declared max:');
+
+  const yr = p.d.getElementById('pd-yr');
+  yr.value = '400';
+  yr.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  is(yr.value, '18', 'age clamped to its declared max:');
+});
+
+test('F13: a negative value is clamped to the minimum', () => {
+  const p = page();
+  const el = p.d.getElementById('la-ht');
+  el.value = '-50';
+  el.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  is(el.value, '100');
+});
+
+test('F13: typing flags but does not rewrite mid-keystroke', () => {
+  const p = page();
+  const el = p.d.getElementById('g-wt');
+  el.value = '3';                                       // below min=1? no - valid
+  el.dispatchEvent(new p.W.Event('input', { bubbles: true }));
+  is(el.value, '3', 'still what the user typed:');
+  el.value = '900';
+  el.dispatchEvent(new p.W.Event('input', { bubbles: true }));
+  is(el.value, '900', 'not rewritten while typing:');
+  if (!el.style.borderColor) throw new Error('out-of-range value was not flagged');
+});
+
+test('F13: in-range values are untouched and unflagged', () => {
+  const p = page();
+  const el = p.d.getElementById('g-wt');
+  el.value = '70';
+  el.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  is(el.value, '70');
+  is(el.style.borderColor, '', 'no warning border:');
+});
+
+test('F13: clamping still triggers the dependent calculations', () => {
+  const p = page();
+  const el = p.d.getElementById('g-wt');
+  el.value = '9000';
+  el.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  is(p.text('g-tbw'), '250 kg', 'body-weight box recalculated from the clamped value:');
+});
+
 /* ------------------------------ F5: airway ------------------------------- */
 
 test('F5: a term neonate is sized by weight, not by Cole', () => {
