@@ -55,14 +55,23 @@ test('17 months in the months field is handled correctly ARITHMETICALLY', () => 
   eq(C.paedWeight(1, 5, null),  10.8);        // same age, split differently
 });
 
-test('CURRENT: adult ages return a paediatric weight (F1)', () => {
-  eq(C.aplsWeight(40 * 12), 127);
-  eq(C.aplsWeight(85 * 12), 262);
-  is(C.aplsFormula(40 * 12), 'adult', 'label says adult while weight is paediatric:');
-});
-pending('F1', 'aplsWeight should refuse ages above 12 years', () => {
+test('FIXED F1: APLS refuses ages above 12 years', () => {
+  is(C.aplsWeight(144), 43, 'still answers at exactly 12 years:');
+  is(C.aplsWeight(145), null, 'one month past 12 years:');
   is(C.aplsWeight(13 * 12), null);
-  is(C.aplsWeight(40 * 12), null);
+  is(C.aplsWeight(40 * 12), null, 'was 127 kg:');
+  is(C.aplsWeight(85 * 12), null, 'was 262 kg:');
+  is(C.aplsFormula(40 * 12), 'over 12 years - enter actual weight',
+     'and the label no longer says "adult" beside a paediatric weight:');
+});
+
+test('FIXED F1: an adult age no longer produces paediatric doses', () => {
+  is(C.paedWeight(40, 0, null), null, 'no weight, so no doses are offered:');
+  is(C.paedWeight(40, 0, 82), 82, 'an entered actual weight is still honoured:');
+});
+
+test('FIXED F1: a negative age is refused', () => {
+  is(C.aplsWeight(-56), null);
 });
 
 test('CURRENT: 5-6 year olds get the 6-12y formula (F20)', () => {
@@ -137,18 +146,23 @@ test('LA maxima are the standard ceilings', () => {
   eq(C.laMaxDose('ligadr', 50), 350, 0);
 });
 
-test('CURRENT: IBW overrides actual weight in underweight adults (F4)', () => {
-  eq(C.laWeightUsed(170, 45, 'f'), 61.4, 0.1);
-  eq(C.laWeightUsed(175, 50, 'm'), 70.5, 0.1);
-  eq(C.laMaxDose('lig', C.laWeightUsed(170, 45, 'f')), 184.2, 0.1);
-});
-pending('F4', 'LA weight should be min(IBW, TBW)', () => {
-  eq(C.laWeightUsed(170, 45, 'f'), 45, 0.1);
-  eq(C.laMaxDose('lig', C.laWeightUsed(170, 45, 'f')), 135, 0.1);
+test('FIXED F4: LA weight is min(IBW, TBW)', () => {
+  eq(C.laWeightUsed(170, 45, 'f'), 45, 0.1, 'frail 45 kg woman, was 61.4:');
+  eq(C.laWeightUsed(175, 50, 'm'), 50, 0.1, 'cachectic 50 kg man, was 70.5:');
+  eq(C.laMaxDose('lig', C.laWeightUsed(170, 45, 'f')), 135, 0.1, 'was 184 mg:');
+  eq(C.laMaxDose('bupi', C.laWeightUsed(170, 45, 'f')), 90, 0.1, 'was 123 mg:');
 });
 
-test('IBW is conservative in obesity, as intended', () => {
-  eq(C.laWeightUsed(160, 90, 'f'), 52.4, 0.1);
+test('FIXED F4: Devine is not evaluated below its valid range', () => {
+  eq(C.laWeightUsed(100, 16, 'm'), 16, 0.1, '100 cm child now uses actual weight, was 2.5 kg:');
+  eq(C.laMaxDose('lig', C.laWeightUsed(100, 16, 'm')), 48, 0.1, 'was 7.5 mg:');
+  eq(C.laWeightUsed(140, 35, 'f'), 35, 0.1, '140 cm patient:');
+});
+
+test('IBW is still conservative in obesity, as intended', () => {
+  eq(C.laWeightUsed(160, 90, 'f'), 52.4, 0.1, 'IBW still wins when it is the lower of the two:');
+  eq(C.laWeightUsed(180, 80, 'm'), 75, 0.1);
+  eq(C.laMaxDose('lig', C.laWeightUsed(160, 90, 'f')), 157.2, 0.1);
 });
 
 test('falls back to actual weight when sex is not given', () => {

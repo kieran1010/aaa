@@ -3,7 +3,7 @@
 **Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
-**Status:** findings only — **no code has been changed**
+**Status:** **F1, F2, F3, F4 and F12 are FIXED** (see Addendum C). The remaining findings are open.
 **Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
 **Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
@@ -59,10 +59,10 @@ examples are in §9.
 
 | ID | Severity | Calculator | Finding |
 |---|---|---|---|
-| **F1** | **C1** | Paed weight | Adult ages produce a paediatric "APLS" weight — 40 y → **127 kg**, 85 y → **262 kg** — and every paediatric dose is then computed on it |
-| **F2** | **C1** | Adult drugs | Adenosine listed as **0.3–0.5 mg/kg** (21–35 mg at 70 kg) in the general antiarrhythmic table; the SVT dose is 6 mg then 12 mg. The app's own Tachycardia page says 6 mg |
-| **F3** | **C1** | Paed drugs | 14 drugs display "Max X" in their note but the cap is **never applied** — suxamethonium, adrenaline, atropine, ondansetron, neostigmine and others are uncapped |
-| **F4** | **C1** | LA max dose | IBW **always overrides** entered weight, so an underweight adult gets a max dose **36–41 % above** their true limit |
+| **F1** | ~~C1~~ **FIXED** | Paed weight | `aplsWeight()` had no upper age bound — 40 y → 127 kg, 85 y → 262 kg, labelled "adult". Now returns null outside 3 months–12 years. *(Addendum C)* |
+| **F2** | ~~C1~~ **FIXED** | Adult drugs | Adenosine carried the 0.3–0.5 mg/kg neurovascular flow-arrest dose. Now the fixed 6 mg → 12 mg SVT dose. *(Addendum C)* |
+| **F3** | ~~C1~~ **FIXED** | Paed drugs | 14 drugs stated "Max X" in prose that was never enforced. All 14 now carry a `maxDose` field, and a lint test fails if a new one appears. *(Addendum C)* |
+| **F4** | ~~C1~~ **FIXED** | LA max dose | IBW always overrode actual weight, raising the ceiling 36–41 % in underweight adults. Now `min(IBW, TBW)`, and Devine is not evaluated below 152.4 cm. *(Addendum C)* |
 | **F5** | **C2** | Paed airway | ETT size and depth are wrong at both ends: neonate → 4.0 mm / 12 cm; 30–50 kg with weight-only entry → oversized by ~1–1.5 mm |
 | **F6** | **C2** | Opioids | The conversion tab and the oMEDD tab disagree by **2×** for IV fentanyl and **50 %** for IV oxycodone |
 | **F7** | **C2** | oMEDD | On-screen footnote says buprenorphine patch **× 25**; the code uses **× 2.4** |
@@ -70,7 +70,7 @@ examples are in §9.
 | **F9** | **C2** | Paed drugs | 4-2-1 maintenance row returns **4 mL/kg/hr flat** — 180 mL/hr for a 45 kg child instead of 85 |
 | **F10** | **C2** | Adult drugs | Aminophylline **10 mg/kg** (700 mg at 70 kg); the app's own Bronchospasm page says 400 mg |
 | **F11** | **C2** | Paed drugs | Sugammadex note reverses the block depths: "Deep: 16 mg/kg; moderate: 4 mg/kg" |
-| **F12** | **C2** | Paed drugs | IM adrenaline for anaphylaxis defaults to **1:10 000** |
+| **F12** | ~~C2~~ **FIXED** | Paed drugs | IM adrenaline now lists 1:1000 first. *(Addendum C)* |
 | **F13** | **C2** | All | **No input validation anywhere** — `min`/`max` attributes are inert without a form |
 | **F14** | **C3** | Body weights | The two body-weight calculators disagree when TBW < IBW (45 kg patient → 45 kg vs 61 kg) |
 | **F15** | **C3** | Global | Age-from-DOB is off by one month around the birthday; future DOB gives a negative age |
@@ -1038,3 +1038,132 @@ addendum.
 - [Pediatric Weight Estimation — Annals of Emergency Medicine](https://www.annemergmed.com/article/S0196-0644(13)00104-2/fulltext)
 - [Endotracheal Tube — StatPearls, NCBI Bookshelf](https://www.ncbi.nlm.nih.gov/books/NBK539747/)
 - [Pediatric intubation — PALS](https://www.tomwademd.net/pediatric-airway-management-pediatric-advanced-life-support-course/)
+
+---
+
+# Addendum C — Fixes applied
+
+**7 September 2026.** Tier 1 is done: **F1, F2, F3, F4** — plus **F12**, which fell
+out of the F3 work. Everything else remains open and untouched.
+
+Each fix went through the loop in `calc/README.md`: apply in the module → confirm
+the finding's pending test flips and **nothing else breaks** → promote the test →
+port into `index.html` → re-run the equivalence harness.
+
+## C.1 What changed
+
+### F1 — `aplsWeight()` bounded to the APLS range
+
+APLS is defined from 3 months to 12 years, so the function now returns `null`
+outside that range instead of extrapolating. `aplsFormula()` no longer returns the
+misleading label `'adult'`; above 12 years it returns
+`'over 12 years - enter actual weight'`, and the paediatric panel says why no doses
+are shown rather than falling back to a generic prompt.
+
+| Age entered | Before | After |
+|---|---|---|
+| 12 y | 43 kg | 43 kg — unchanged |
+| 13 y | 46 kg | *refused* |
+| 40 y | **127 kg** | *refused* |
+| 85 y | **262 kg** | *refused* |
+| negative (from a future DOB) | fell through | *refused* |
+
+Verified in a real DOM: 40 years with no weight now shows *"Age is over 12 years —
+APLS weight estimation does not apply. Enter an actual weight."* A 3-year-old
+still returns 14 kg, unchanged.
+
+### F2 — Adenosine
+
+Replaced the per-kg entry with the fixed ANZCOR dose, and the note now names the
+dose it is **not**:
+
+```
+bolusLo: 6, bolusHi: 12, bolusUnit: 'mg (fixed)', conc: '3 mg/mL',
+notes: 'SVT: 6 mg rapid IV push into a large proximal vein + saline flush,
+        then 12 mg, then 12 mg. NOT the 0.3-0.6 mg/kg neurosurgical
+        flow-arrest dose - see Aneurysm Rupture (OR)'
+```
+
+At 70 kg the table showed **21–35 mg**; it now shows **6–12 mg**, matching the
+app's own Tachycardia page. The flow-arrest dose stays on the neuro page, where it
+has its indication.
+
+### F3 — The 14 unenforced maxima
+
+Every "Max X" written in prose now has a matching `maxDose` field. Units follow
+the row's own dose unit — mcg where the dose is mcg/kg, mg where it is mg/kg:
+
+| Drug | `maxDose` | Where it bites |
+|---|---|---|
+| Midazolam (oral) | 15 mg | 40 kg → was 20 mg |
+| Suxamethonium (IV) | 150 mg | 100 kg → was 200 mg |
+| Atropine (reversal) | 500 mcg | 40 kg → was 800 mcg |
+| Atropine (emergency) | 0.5 mg | 40 kg → was 0.8 mg |
+| Glycopyrrolate | 400 mcg | 60 kg |
+| Neostigmine | 5000 mcg | 120 kg |
+| Ketorolac | 15 mg | 30 kg |
+| Parecoxib | 40 mg | 80 kg |
+| Cyclizine | 50 mg | 60 kg → was 60 mg |
+| Dexamethasone | 8 mg | 80 kg |
+| Ondansetron | 4 mg | 45 kg → was 6.75 mg |
+| Adenosine (paed) | 6 mg | 60 kg |
+| Adrenaline (IM) | 0.5 mg | 60 kg → was 0.6 mg |
+| Adrenaline (arrest) | 1 mg | 150 kg |
+
+**The lint matters more than the fourteen edits.** `calc/data.test.js` scans the
+shipped `index.html` for any note matching `max(imum)? N (mg|mcg|g|units)` and
+fails if that row has no `maxDose`. A fifteenth drug added with a prose-only
+maximum now breaks the suite. IV paracetamol is explicitly exempt — its 1000 mg
+cap is applied by the `paracetamolIV` branch, not a field.
+
+### F4 — LA weight is `min(IBW, TBW)`
+
+Two changes: the lower of IBW and actual weight is used, and Devine is not
+evaluated below 152.4 cm.
+
+| Patient | Before | After |
+|---|---|---|
+| 170 cm, 45 kg ♀ | 61.4 kg → lignocaine 184 mg | **45 kg → 135 mg** |
+| 175 cm, 50 kg ♂ | 70.5 kg → lignocaine 200 mg | **50 kg → 150 mg** |
+| 160 cm, 90 kg ♀ | 52.4 kg → 157 mg | 52.4 kg — unchanged, still conservative |
+| 100 cm, 16 kg | 2.5 kg → lignocaine **7.5 mg** | **16 kg → 48 mg** |
+
+The box is relabelled from "IBW used" to "Weight used" and gains a caption saying
+which was taken — *"IBW (lower than actual)"*, *"Actual (lower than IBW)"*, or
+*"Actual — IBW not valid under 152 cm"* — so the choice is visible rather than
+implied.
+
+### F12 — IM adrenaline lists 1:1000 first
+
+Fell out of the F3 edit to the same row. A 60 kg patient's anaphylaxis dose now
+renders as **0.50 mg (capped) = 0.50 mL of 1:1000**, where it previously read
+0.6 mg and offered 1:10 000 first — 6 mL for an intramuscular injection.
+
+## C.2 How this was verified
+
+| | |
+|---|---|
+| **Equivalence** | 11,263 checks, 0 mismatches |
+| **Logic tests** | 38 passed, 0 failed, 14 pending |
+| **Data tests** | 16 passed, 0 failed, 3 pending |
+| **Syntax** | the 2,336-line inline script passes `node --check` |
+| **End-to-end** | the page boots in jsdom with no script errors; all five fixes confirmed through the rendered DOM |
+
+**The equivalence harness no longer compares against a hand copy.** `calc/live.js`
+slices each function out of `index.html` and executes it against a minimal DOM
+stub, so the module is checked against the code that actually ships. A hand-copied
+"original" only proves the copy matches; this does not have that hole.
+
+Run everything with `./calc/run-all.sh`.
+
+## C.3 What is deliberately still open
+
+Tier 2 and 3 of §9, unchanged: **F5** (ETT sizing at the extremes), **F6/F7/F8**
+(the opioid tables), **F9** (4-2-1), **F10/F11/F17/F18** (adult table vs the
+emergency pages), **F13** (input validation), **F14/F15/F16/F19/F20/F24** and the
+rest. 17 pending tests across the two suites track them; each fails today by
+design and names its finding.
+
+**F28/F29 remain provisional and were deliberately not applied.** Changing an
+opioid conversion factor on search-derived evidence is exactly the move that
+produced the retracted F27. Those need a read of ANZCA PS01(PM) Appendix 2 first.

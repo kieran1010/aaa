@@ -309,7 +309,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
           <option value="f">Female</option>
         </select>
       </div>
-      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">IBW used</div><div class="ibw-val" id="ibw-used">-</div></div>
+      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note"></div></div>
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetLA()">Reset</button>
     </div>
@@ -1997,17 +1997,34 @@ function fmtN(n) {
   return n >= 100 ? Math.round(n).toString() : n >= 10 ? n.toFixed(1) : n.toFixed(2);
 }
 
+// Weight used for LA maximum doses: min(IBW, actual). IBW alone is the right
+// conservative choice in obesity, but for a patient lighter than their ideal
+// weight it RAISED the ceiling - 36-41% above the true limit. Devine is also no
+// longer evaluated below its valid range (152.4 cm), where it produced nonsense
+// (a 100 cm child gave an IBW of 2.5 kg).
+const DEVINE_MIN_HEIGHT_CM = 152.4;
+
 function getIBW() {
   const ht  = parseFloat(document.getElementById('la-ht').value)    || null;
   const wt  = parseFloat(document.getElementById('la-wt').value)    || null;
   const sex = document.getElementById('la-sex').value;
-  let calc = null;
-  if (ht && sex) {
-    calc = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (ht - 152.4)) * 10) / 10;
-    if (calc < 1) calc = null;
+  let ibw = null;
+  if (ht && sex && ht >= DEVINE_MIN_HEIGHT_CM) {
+    ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (ht - 152.4)) * 10) / 10;
+    if (ibw < 1) ibw = null;
   }
-  const used = calc ?? wt;
-  document.getElementById('ibw-used').textContent = used != null ? used + ' kg' : '-';
+  const used = (ibw != null && wt) ? Math.min(ibw, wt) : (wt || ibw || null);
+  const el = document.getElementById('ibw-used');
+  el.textContent = used != null ? used + ' kg' : '-';
+  const note = document.getElementById('ibw-used-note');
+  if (note) {
+    note.textContent = used == null ? ''
+      : (ibw != null && wt && ibw < wt) ? 'IBW (lower than actual)'
+      : (ibw != null && wt) ? 'Actual (lower than IBW)'
+      : (ibw != null) ? 'IBW'
+      : ht && ht < DEVINE_MIN_HEIGHT_CM ? 'Actual - IBW not valid under 152 cm'
+      : 'Actual weight';
+  }
   return used;
 }
 
@@ -2155,19 +2172,27 @@ function resetLA() {
 ======================================= */
 let pdCatKey  = null;
 
+// APLS 2011. Defined only from 3 months to 12 years - the function returns null
+// outside that range rather than extrapolating. Previously the final branch ran
+// for any age, so 40 y returned 127 kg and every paediatric dose was computed
+// on it while the label read 'adult'.
+const APLS_MAX_MONTHS = 144; // 12 years
+
 function aplsWeight(totalMonths) {
   const yr = totalMonths / 12;
-  if (totalMonths < 3)  return null;
+  if (!(totalMonths >= 0))           return null; // negative age
+  if (totalMonths < 3)               return null; // below the validated range
+  if (totalMonths > APLS_MAX_MONTHS) return null; // APLS stops at 12 years
   if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
   if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
-  return Math.round((3 * yr + 7) * 10) / 10; // covers all ages
+  return Math.round((3 * yr + 7) * 10) / 10;
 }
 function aplsFormula(totalMonths) {
   const yr = totalMonths / 12;
+  if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
   if (totalMonths < 12) return '(age_mo / 2) + 4';
   if (yr <= 5)          return '2 x (age + 4)';
-  if (yr <= 12)         return '3 x age + 7';
-  return 'adult';
+  return '3 x age + 7';
 }
 
 function calcPdAge() {
@@ -2193,7 +2218,11 @@ function calcPdAge() {
   const wtUsed = actualWt ?? apls;
   document.getElementById('pd-wt-used').textContent       = wtUsed != null ? fmtN(wtUsed) + ' kg' : '-';
   document.getElementById('pd-wt-source-note').textContent =
-    actualWt ? 'Actual weight entered' : (apls ? 'APLS estimate' : 'Enter weight or age');
+    actualWt ? 'Actual weight entered'
+             : apls ? 'APLS estimate'
+             : totalMonths > APLS_MAX_MONTHS ? 'Age over 12 years - enter actual weight'
+             : totalMonths > 0 ? 'Under 3 months - enter actual weight'
+             : 'Enter weight or age';
 
   calcPaed();
 }
@@ -2213,7 +2242,7 @@ const PD_CATS = {
     { n: 'Clonidine',                doseStr: '4',    unit: 'mcg/kg', route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 150, note: 'Max 150 mcg' },
     { n: 'Dexmedetomidine',          doseStr: '4',    unit: 'mcg/kg', route: 'in',   concs: [{ c: 'intranasal', mgml: null }], note: '' },
     { n: 'Ketamine',                 doseStr: '5',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 500, note: 'Max 500 mg' },
-    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: 'Max 15 mg' },
+    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 15, note: 'Max 15 mg' },
   ],
   'Induction': [
     { n: 'Fentanyl',                 doseStr: '2',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], maxDose: 200, note: 'Max 200 mcg' },
@@ -2226,22 +2255,22 @@ const PD_CATS = {
     { n: 'Rocuronium',               doseStr: '0.6',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Rocuronium (RSI)',         doseStr: '1.2',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Suxamethonium (IM)',       doseStr: '4',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'If no IV access' },
-    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 150 mg' },
+    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], maxDose: 150, note: 'Max 150 mg' },
     { n: 'Vecuronium',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL',  mgml: 1  }], note: '' },
   ],
   'Reversal': [
-    { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], note: 'Min 0.1 mg; max 0.5 mg' },
-    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], note: 'Max 0.4 mg' },
-    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], note: 'Max 5 mg; with glycopyrrolate' },
+    { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], maxDose: 500, note: 'Min 0.1 mg; max 0.5 mg' },
+    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], maxDose: 400, note: 'Max 0.4 mg' },
+    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], maxDose: 5000, note: 'Max 5 mg; with glycopyrrolate' },
     { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Deep: 16 mg/kg; moderate: 4 mg/kg' },
   ],
   'Analgesia (IV)': [
     { n: 'Fentanyl',                 doseStr: '1',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], note: '' },
     { n: 'Ketamine',                 doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: 'Sub-dissociative' },
-    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], note: 'Max 15 mg; >6 months' },
+    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], maxDose: 15, note: 'Max 15 mg; >6 months' },
     { n: 'Morphine',                 doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL', mgml: 1 }], maxDose: 10, note: 'Max 10 mg' },
     { n: 'Paracetamol',              doseStr: 'wt',   unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '<5 kg: 7.5 mg/kg . 5-10 kg: 10 mg/kg . >10 kg: 15 mg/kg . max 1000 mg', paracetamolIV: true },
-    { n: 'Parecoxib',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: 'IV', mgml: null }], note: 'Max 40 mg; >6 months only' },
+    { n: 'Parecoxib',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: 'IV', mgml: null }], maxDose: 40, note: 'Max 40 mg; >6 months only' },
   ],
   'Analgesia (oral)': [
     { n: 'Ibuprofen',               doseStr: '10',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 400, note: 'Max 400 mg' },
@@ -2251,16 +2280,16 @@ const PD_CATS = {
     { n: 'Tramadol',                doseStr: '1',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 100, note: 'Max 100 mg' },
   ],
   'Antiemetics': [
-    { n: 'Cyclizine',               doseStr: '1',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 50 mg; >6 yr; slow IV' },
-    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], note: 'Max 8 mg' },
-    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], note: 'Max 4 mg; >1 month' },
+    { n: 'Cyclizine',               doseStr: '1',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], maxDose: 50, note: 'Max 50 mg; >6 yr; slow IV' },
+    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], maxDose: 8, note: 'Max 8 mg' },
+    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], maxDose: 4, note: 'Max 4 mg; >1 month' },
   ],
   'Emergency': [
-    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: 'Rapid IV; max 6 mg 1st dose' },
-    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }, { c: '1:1000 (1 mg/mL)', mgml: 1 }], note: 'Anaphylaxis: 0.01 mg/kg IM. Max 0.5 mg' },
-    { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], note: 'IV/IO. Max 1 mg' },
+    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '3 mg/mL',   mgml: 3   }], maxDose: 6, note: 'Rapid IV; max 6 mg 1st dose' },
+    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:1000 (1 mg/mL)', mgml: 1 }, { c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], maxDose: 0.5, note: 'Anaphylaxis: 0.01 mg/kg IM, max 0.5 mg. Use 1:1000 for the IM route' },
+    { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], maxDose: 1, note: 'IV/IO. Max 1 mg' },
     { n: 'Amiodarone',              doseStr: '5',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], maxDose: 300, note: 'Pulseless VT/VF. Max 300 mg' },
-    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 0.6  }], note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
+    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 0.6  }], maxDose: 0.5, note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
     { n: 'Ephedrine',               doseStr: '0.25', unit: 'mg/kg',  route: 'im',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: '' },
     { n: 'Hydrocortisone',          doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: 'Anaphylaxis, adrenal crisis' },
     { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.5 mg/mL',  mgml: 0.5 }], note: 'Titrate to effect' },
@@ -2397,7 +2426,17 @@ function renderAirway(wt, out) {
 function calcPaed() {
   const wt  = getPdWt();
   const out = document.getElementById('pd-out');
-  if (!wt) { out.innerHTML = '<div class="empty">Enter patient age or weight to view doses</div>'; return; }
+  if (!wt) {
+    const tm = (parseInt(document.getElementById('pd-yr').value) || 0) * 12 +
+               (parseInt(document.getElementById('pd-mo').value) || 0);
+    const why = tm > APLS_MAX_MONTHS
+      ? 'Age is over 12 years - APLS weight estimation does not apply. Enter an actual weight.'
+      : tm > 0 && tm < 3
+        ? 'Under 3 months - APLS weight estimation does not apply. Enter an actual weight.'
+        : 'Enter patient age or weight to view doses';
+    out.innerHTML = '<div class="empty">' + why + '</div>';
+    return;
+  }
   if (pdCatKey === 'Airway') { renderAirway(wt, out); return; }
   const drugs = PD_CATS[pdCatKey];
   let rows = '';
@@ -2676,7 +2715,7 @@ const DRUG_CATS = {
     { name:'Sodium nitroprusside',   conc:'',             bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Light-protect infusion. Monitor for cyanide toxicity if >3 mcg/kg/min or >72 hr' },
   ],
   'Antiarrhythmics': [
-    { name:'Adenosine',              conc:'',             bolusLo:0.3,  bolusHi:0.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Rapid IV push' },
+    { name:'Adenosine',              conc:'3 mg/mL',      bolusLo:6,    bolusHi:12,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'SVT: 6 mg rapid IV push into a large proximal vein + saline flush, then 12 mg, then 12 mg. NOT the 0.3-0.6 mg/kg neurosurgical flow-arrest dose - see Aneurysm Rupture (OR)' },
     { name:'Amiodarone',             conc:'50 mg/mL',     bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:5,    infHi:15,   infUnit:'mcg/kg/min',    maxDose:300,  notes:'Max 300 mg bolus. Load 300 mg IV over 20-60 min, then 900 mg over 24 hr. VT/AF' },
     { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max 6 mg' },
     { name:'Lignocaine',             conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:20,   infHi:50,   infUnit:'mcg/kg/min',    notes:'Ventricular arrhythmias. Max bolus 6 mg/kg in 1 hr' },

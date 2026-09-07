@@ -72,24 +72,28 @@
 
   /* -------------------------------------------------- paediatric weight/APLS */
 
-  // Verified identical to APLS 2011 at every month 0-12y (Addendum B.1).
-  // F1: no upper bound — the final branch runs for any age.
-  // F20: fractional age sends 5-6y to the 6-12y formula, over-estimating.
+  // APLS 2011. Verified identical to the published formulae at every month
+  // 0-12y (Addendum B.1). APLS is defined only to 12 years, so the function
+  // refuses beyond it rather than extrapolating (F1 fixed).
+  // F20 remains open: fractional age sends 5-6y to the 6-12y formula.
+  var APLS_MAX_MONTHS = 144;   // 12 years
+
   function aplsWeight(totalMonths) {
     var yr = totalMonths / 12;
-    if (totalMonths < 3)  return null;
+    if (!(totalMonths >= 0))          return null;   // negative age (see F15)
+    if (totalMonths < 3)              return null;   // below the validated range
+    if (totalMonths > APLS_MAX_MONTHS) return null;  // F1: APLS stops at 12 years
     if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
     if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
     return Math.round((3 * yr + 7) * 10) / 10;
   }
 
-  // F1: says 'adult' above 12y while aplsWeight still returns a paediatric weight.
   function aplsFormula(totalMonths) {
     var yr = totalMonths / 12;
+    if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
     if (totalMonths < 12) return '(age_mo / 2) + 4';
     if (yr <= 5)          return '2 x (age + 4)';
-    if (yr <= 12)         return '3 x age + 7';
-    return 'adult';
+    return '3 x age + 7';
   }
 
   function paedWeight(yr, mo, actualWt) {
@@ -168,15 +172,23 @@
     ropi:   { name: 'Ropivacaine',              mgkg: 3, ceil: 300 }
   };
 
-  // F4: `calc ?? wt` — IBW wins whenever height and sex are given, even when it
-  // exceeds the patient's actual weight. Should be min(IBW, TBW).
+  // F4 fixed. Two changes from the original:
+  //   1. min(IBW, TBW) rather than IBW-wins. Using IBW is the right conservative
+  //      choice in obesity, but for a patient lighter than their ideal weight it
+  //      RAISED the ceiling — 36-41% above the true limit in the audited cases.
+  //   2. Devine is not evaluated below its valid range (152.4 cm). Previously a
+  //      100 cm child produced an IBW of 2.5 kg and a lignocaine ceiling of
+  //      7.5 mg; now it falls back to actual weight.
+  var DEVINE_MIN_HEIGHT_CM = 152.4;
+
   function laWeightUsed(heightCm, weightKg, sex) {
-    var calc = null;
-    if (heightCm && sex) {
-      calc = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (heightCm - 152.4)) * 10) / 10;
-      if (calc < 1) calc = null;
+    var ibw = null;
+    if (heightCm && sex && heightCm >= DEVINE_MIN_HEIGHT_CM) {
+      ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (heightCm - 152.4)) * 10) / 10;
+      if (ibw < 1) ibw = null;
     }
-    return calc != null ? calc : (weightKg || null);
+    if (ibw != null && weightKg) return Math.min(ibw, weightKg);
+    return weightKg || ibw || null;
   }
 
   function laMaxDose(drugKey, weightUsed) {

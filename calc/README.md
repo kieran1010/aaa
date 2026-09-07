@@ -3,16 +3,19 @@
 Pure calculation logic lifted out of `index.html` so it can be tested. See
 `../CALCULATOR_AUDIT.md` for the findings these files refer to by ID.
 
-**Nothing here has been fixed yet.** The module reproduces the application's
-current behaviour exactly, defects included. That is deliberate: it is the
-safety net the fixes get applied against.
+**F1, F2, F3, F4 and F12 are fixed** in both the module and `index.html`
+(Addendum C of the audit). Everything else still reproduces current behaviour
+exactly, defects included — that is the safety net the remaining fixes get
+applied against.
 
 ## Files
 
 | | |
 |---|---|
 | `calculators.js` | The extracted functions. No DOM access. Each known defect is annotated with its finding ID — don't "tidy" an annotated line, the tests assert it. |
-| `equivalence.js` | Proves `calculators.js` is behaviourally identical to `index.html`, by pasting the original inline source and sweeping ~32k input points. |
+| `live.js` | Slices each function out of `index.html` and makes it callable, with a minimal DOM stub. This is what keeps the harness honest — it executes the code that ships, not a copy of it. |
+| `equivalence.js` | Proves `calculators.js` matches those live functions across ~11k swept input points. |
+| `data.js` / `data.test.js` | Loads the drug data literals out of `index.html` and asserts on them — F2 and F3 are data defects, so they have to be tested against the real file. Includes the max-dose lint. |
 | `calculators.test.js` | Pins current behaviour, and encodes the target behaviour for each open finding as a `pending()` test. |
 
 ## Running
@@ -20,8 +23,11 @@ safety net the fixes get applied against.
 No dependencies, no install. Node only.
 
 ```sh
+./calc/run-all.sh               # everything
+
 node calc/equivalence.js        # must PASS before you trust anything below
-node calc/calculators.test.js   # 35 passing, 16 pending
+node calc/calculators.test.js   # 38 passing, 14 pending
+node calc/data.test.js          # 16 passing,  3 pending
 ```
 
 `equivalence.js` exits non-zero on any divergence from `index.html`.
@@ -42,8 +48,10 @@ tests are expected to fail and do not fail the run.
 
 Step 5 is the one that is easy to skip and must not be: **`index.html` is still
 the code that runs.** Until its inline copies are replaced by a `<script src>`
-onto this module, the two must be kept in step by hand, and `equivalence.js` is
-what tells you whether they are.
+onto this module, the two must be kept in step by hand. `equivalence.js` is what
+tells you whether they are — and because it executes the real functions out of
+`index.html` rather than a transcription, forgetting step 5 fails the build
+rather than passing quietly.
 
 ## Why `index.html` still carries its own copies
 
@@ -56,8 +64,12 @@ step can be taken later and verified.
 
 ## Pending tests
 
-16, one or more per open finding: F1, F2, F3, F4, F5, F6, F9, F14, F15, F16,
-F19, F20, F24, F28/F29. Each fails today by design.
+17 across the two suites, one or more per open finding: F5, F6, F7, F9, F14,
+F15, F16, F19, F20, F24, F28/F29. Each fails today by design and names its
+finding.
+
+F1, F2, F3, F4 and F12 no longer appear here — their pending tests were promoted
+to `test()` when the fixes landed.
 
 F28/F29 are marked **provisional** in the audit — the ANZCA values behind them
 could not be read from the primary document from this environment. Confirm
