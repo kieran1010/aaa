@@ -3,7 +3,7 @@
 **Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
-**Status:** **19 findings fixed** — F1–F5, F7–F13, F17, F18, F21, F24, F30 (Addenda C, D, E). **F27 retracted** (Addendum B). The rest are open; F6, F28 and F29 need a clinical decision.
+**Status:** **27 of 30 findings fixed** (Addenda C–F). **F27 retracted** (Addendum B). Only **F6, F28 and F29** remain, all held deliberately pending a clinical decision and a primary-source check — see F.9.
 **Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
 **Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
@@ -72,19 +72,19 @@ examples are in §9.
 | **F11** | ~~C2~~ **FIXED** | Paed drugs | Sugammadex block depths were reversed; now moderate 2 / deep 4 / rescue 16 mg/kg. *(Addendum E)* |
 | **F12** | ~~C2~~ **FIXED** | Paed drugs | IM adrenaline now lists 1:1000 first. *(Addendum C)* |
 | **F13** | ~~C2~~ **FIXED** | All | Real input validation — clamps on blur, flags while typing. The min/max attributes were inert. *(Addendum E)* |
-| **F14** | **C3** | Body weights | The two body-weight calculators disagree when TBW < IBW (45 kg patient → 45 kg vs 61 kg) |
-| **F15** | **C3** | Global | Age-from-DOB is off by one month around the birthday; future DOB gives a negative age |
-| **F16** | **C3** | Opioids | Methadone conversion does not round-trip — 7.5 mg → 30 mg oMEDD → 5 mg (−33 %) |
+| **F14** | ~~C3~~ **FIXED** | Body weights | One shared implementation; ABW can no longer exceed the patient. *(Addendum F)* |
+| **F15** | ~~C3~~ **FIXED** | Global | DOB borrow corrected; future dates refused and flagged. *(Addendum F)* |
+| **F16** | ~~C3~~ **FIXED** | Opioids | Methadone conversion round-trips exactly; the forward table is unchanged. *(Addendum F)* |
 | **F17** | ~~C3~~ **FIXED** | Adult drugs | Salbutamol, esmolol, ephedrine and metoprolol reconciled with the emergency pages. *(Addendum E)* |
 | **F18** | ~~C3~~ **FIXED** | Adult drugs | Atropine maximum 6 → 3 mg (ANZCOR 11.9), in both the table and the Bradycardia page. *(Addendum E)* |
-| **F19** | **C3** | Body weights | Devine IBW is applied below its valid range — 100 cm gives **0–2.6 kg** |
-| **F20** | **C3** | Paed weight | 4-kg discontinuity at exactly 5.0 years (18 kg → 22.3 kg) |
+| **F19** | ~~C3~~ **FIXED** | Body weights | Devine declines below 152.4 cm instead of clamping to 0. *(Addendum F)* |
+| **F20** | ~~C3~~ **FIXED** | Paed weight | Band chosen by completed years — a 5.5-year-old is 19 kg, was 23.5. *(Addendum F)* |
 | **F21** | ~~C3~~ **FIXED** | Adult drugs | Propofol infusion range now matches its own note (50–150 mcg/kg/min). *(Addendum E)* |
-| **F22** | **C3** | Regional | Block LA volumes are static text with no weight input and no link to the LA calculator |
-| **F23** | **C3** | Emergency | Dantrolene and Intralipid show hard-coded 70 kg examples, ignoring the global patient card |
+| **F22** | ~~C3~~ **FIXED** | Regional | The max-dose caveat is now on every block, pointing at the LA calculator. *(Addendum F)* |
+| **F23** | ~~C3~~ **FIXED** | Emergency | Dantrolene and Intralipid follow the entered weight. *(Addendum F)* |
 | **F24** | ~~C4~~ **FIXED** | Paed | Age now normalises on entry — 17 months resolves to 1y 5m in the fields and the display, on both cards. *(Addendum D)* |
-| **F25** | **C4** | Consent | `new Date()` on a date input is parsed as UTC — DOB can render one day early outside NZ |
-| **F26** | **C4** | Paed drugs | IM ketamine at 10 mg/mL implies 10 mL IM for a 20 kg child |
+| **F25** | ~~C4~~ **FIXED** | Consent | Date inputs parsed as local, not UTC. *(Addendum F)* |
+| **F26** | ~~C4~~ **FIXED** | Paed drugs | IM ketamine now offers 100/50 mg/mL — 1 mL, not 10 mL. *(Addendum F)* |
 | **F30** | ~~C2~~ **FIXED** | Global ↔ paed | **New.** Typing a weight silently wiped an age entered on the paediatric tab, changing the recommended ETT size. Age sync is now two-way and non-destructive. *(Addendum D)* |
 | ~~**F27**~~ | — | Paed weight | ~~Superseded APLS formulae~~ — **WITHDRAWN, see Addendum B.** The app's formulae are current APLS and match at every month 0–12 y. The finding was based on the Best Guess formulae misread as an APLS update. |
 | **F28** | **C2** *(provisional)* | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A; provisional per B.1)* |
@@ -1406,3 +1406,145 @@ concentration).
 
 The data suite now cross-checks the adult table against the emergency-page text
 directly, so this class of drift fails the build rather than being rediscovered.
+
+---
+
+# Addendum F — Tier 3
+
+**7 September 2026.** F14, F15, F16, F19, F20, F22, F23, F25 and F26 fixed. Only
+F6, F28 and F29 remain, and all three are held deliberately (F.9).
+
+## F.1 One body-weight implementation (F14, F19)
+
+The patient card and the drugs tab each had their own copy of Devine,
+Janmahasatian and adjusted body weight, and they disagreed. Both now call one set
+of shared functions.
+
+**The drugs-tab copy returned IBW when TBW ≤ IBW**, producing an "adjusted body
+weight" *larger than the patient* — the dangerous direction for anything dosed on
+ABW:
+
+| Patient | Patient card | Drugs tab (was) | Both now |
+|---|---|---|---|
+| 45 kg, 170 cm ♀ | 45 kg | **61 kg** | 45 kg |
+| 50 kg, 175 cm ♂ | 50 kg | **70 kg** | 50 kg |
+| 55 kg, 180 cm ♂ | 55 kg | **75 kg** | 55 kg |
+
+A property test now asserts ABW never exceeds TBW across 40–200 kg at three
+heights.
+
+**Devine declines below 152.4 cm** rather than clamping to zero. A 140 cm patient
+previously showed an IBW of 34/29 kg and a 100 cm child 2.6/0 kg; both displays
+now read "—" with *Devine not valid <152 cm*. Lean body weight is still shown,
+since Janmahasatian has no such floor.
+
+## F.2 Age from date of birth (F15, F25)
+
+`Math.max(0, mo - 1)` swallowed the day-of-month borrow instead of decrementing
+the year, so the day before a birthday read as the full year — which could push a
+child across the 12-month APLS band:
+
+| DOB | On | Was | Now |
+|---|---|---|---|
+| 2020-03-15 | 2026-03-10 | 6y 0m | **5y 11m** |
+| 2025-06-20 | 2026-06-10 | 1y 0m | **0y 11m** |
+| 2030-01-01 | 2026-09-05 | **−4y 8m** | refused and flagged |
+
+Date inputs are also parsed as **local** dates now (**F25**). `new Date('2000-05-15')`
+is UTC midnight, which renders as the previous day anywhere west of UTC — a
+consent document could carry a DOB one day early.
+
+A property test walks a DOB forward a week at a time for ~40 years and asserts the
+age never goes backwards and months stay in 0–11.
+
+## F.3 The 5–6 year gap (F20)
+
+APLS defines 1–5 and 6–12 with nothing between. Selecting on `yr <= 5` sent every
+child from 5.01 years to the 6–12 formula:
+
+| Age | Was | Now |
+|---|---|---|
+| 5.0 y | 18 kg | 18 kg |
+| 5.5 y | **23.5 kg** | 19 kg |
+| 5.9 y | **24.8 kg** | 19.8 kg |
+| 6.0 y | 25 kg | 25 kg |
+
+The band is now chosen by **completed years**, with fractional age still used
+inside a band so the curve stays smooth. A test asserts monotonicity across every
+month from 3 to 144.
+
+## F.4 Methadone round-trips exactly (F16)
+
+Ripamonti bands the ratio on the **oMEDD**, so converting *from* methadone has to
+solve for the band. The old code banded on the methadone dose using different
+cut-points, so the two directions were not inverses.
+
+The reverse now tries the ratios in ascending order and takes the first
+self-consistent one:
+
+| Methadone | Was | Now | Round-trip |
+|---|---|---|---|
+| 7.5 mg | 30 mg oMEDD → back to 5 mg *(−33 %)* | 45 mg | **exact** |
+| 15 mg | 90 → 11.3 mg *(−25 %)* | 120 mg | **exact** |
+| 20 mg | 120 → 15 mg *(−25 %)* | 160 mg | **exact** |
+| 50 mg | 400 → 33.3 mg *(−33 %)* | 600 mg | **exact** |
+
+The forward direction is unchanged and still matches the displayed Ripamonti
+table exactly (60 mg oMEDD → 10 mg methadone). Note the reverse now returns a
+**higher** oMEDD than before — the conservative direction when assessing risk.
+
+## F.5 Regional block volumes (F22)
+
+The "do not exceed max dose" caveat was on some blocks and not others — notably
+absent from fascia iliaca, whose 30–40 mL of 0.5 % bupivacaine is 200 mg against a
+150 mg ceiling. It is now appended to **every** block that does not already carry
+one, pointing at the LA Toxicity calculator.
+
+This does not make the regional tab weight-aware; the volumes are still static
+text. That remains a design limitation rather than a defect.
+
+## F.6 Dantrolene and Intralipid follow the patient (F23)
+
+Both showed a hard-coded 70 kg worked example while the app already knew the
+weight. At 100 kg:
+
+| | Was | Now |
+|---|---|---|
+| Dantrolene 2.5 mg/kg | ~175 mg = 9 vials | **250 mg = 13 vials** |
+| Intralipid bolus 1.5 mL/kg | ~100 ml | **150 ml** |
+| Intralipid infusion 15 mL/kg/hr | ~1000 ml/hr | **1500 ml/hr**, max total 1200 ml |
+
+The infusion line now also states the **12 mL/kg cumulative maximum** in millilitres,
+which previously appeared only as a per-kg figure elsewhere on the panel. With no
+weight entered, both fall back to the 70 kg example.
+
+## F.7 IM ketamine (F26)
+
+5 mg/kg at 10 mg/mL is **10 mL intramuscularly** for a 20 kg child. The row now
+offers 100 mg/mL and 50 mg/mL, giving 1 mL.
+
+## F.8 Verification
+
+| | |
+|---|---|
+| Syntax | 2,619 lines parse; all 49 inline handlers resolve |
+| Equivalence | 12,065 checks against the live `index.html`, 0 mismatches |
+| Logic | 52 passed, 0 failed, 4 pending |
+| Data | 30 passed, 0 failed, 2 pending |
+| DOM | 38 passed, 0 failed |
+
+## F.9 What is left, and why
+
+**Three findings remain, all held on purpose.**
+
+- **F6** — the opioid conversion tab and the oMEDD tab disagree by 2× on IV
+  fentanyl (0.1 vs 0.2 per mcg) and 34 % on IV oxycodone. Reconciling them means
+  choosing which factor table to adopt, and ANZCA's value for parenteral fentanyl
+  (0.3) matches neither. That is a clinical decision.
+- **F28 / F29** — tramadol and tapentadol factors. Provisional on search-derived
+  evidence, which is what produced the retracted F27. They need a read of ANZCA
+  PS01(PM) Appendix 2, which this environment cannot fetch.
+
+Six pending tests across the two suites hold all three. Each fails today by
+design and names its finding, so whichever way you decide, the target behaviour is
+already written down.

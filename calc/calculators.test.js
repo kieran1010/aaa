@@ -74,12 +74,21 @@ test('FIXED F1: a negative age is refused', () => {
   is(C.aplsWeight(-56), null);
 });
 
-test('CURRENT: 5-6 year olds get the 6-12y formula (F20)', () => {
-  eq(C.aplsWeight(66), 23.5, '5.5 years:');
+test('FIXED F20: 5-6 year olds stay in the 1-5y band', () => {
+  eq(C.aplsWeight(60), 18,   0, '5.0 years:');
+  eq(C.aplsWeight(66), 19,   0, '5.5 years, was 23.5:');
+  eq(C.aplsWeight(71), 19.8, 0.1, '5.9 years, was 24.8:');
+  eq(C.aplsWeight(72), 25,   0, '6.0 years, the real band boundary:');
+  is(C.aplsFormula(66), '2 x (age + 4)', 'and the label agrees:');
 });
-pending('F20', '5-6y should not be over-estimated by the 6-12y formula', () => {
-  const w = C.aplsWeight(66);
-  if (w > 21) throw new Error(`5.5y estimated at ${w} kg; APLS 1-5y band gives 19 kg`);
+
+test('FIXED F20: APLS is monotonic across the whole range', () => {
+  let prev = 0;
+  for (let m = 3; m <= 144; m++) {
+    const w = C.aplsWeight(m);
+    if (w < prev - 1e-9) throw new Error(`weight fell from ${prev} to ${w} at ${m} months`);
+    prev = w;
+  }
 });
 
 test('FIXED F24: the age display normalises months into years', () => {
@@ -118,23 +127,37 @@ test('normaliseAge clamps a negative age to zero', () => {
 
 /* ================================ age / DOB ============================== */
 
-test('CURRENT: DOB borrow is swallowed (F15)', () => {
+test('FIXED F15: the day-of-month borrow decrements the year', () => {
   const a = C.ageFromDOB(new Date(2020, 2, 15), new Date(2026, 2, 10));
-  is(a.years, 6);  is(a.months, 0);           // true age is 5y 11m
+  is(a.years, 5); is(a.months, 11, 'was 6y 0m:');
   const b = C.ageFromDOB(new Date(2025, 5, 20), new Date(2026, 5, 10));
-  is(b.years, 1);  is(b.months, 0);           // true age is 0y 11m — crosses the APLS band
-});
-pending('F15', 'DOB should borrow from the year correctly', () => {
-  const a = C.ageFromDOB(new Date(2020, 2, 15), new Date(2026, 2, 10));
-  is(a.years, 5); is(a.months, 11);
+  is(b.years, 0); is(b.months, 11, 'was 1y 0m, which crossed the APLS band:');
 });
 
-test('CURRENT: a future DOB yields a negative age (F15)', () => {
-  const a = C.ageFromDOB(new Date(2030, 0, 1), new Date(2026, 8, 5));
-  if (a.years >= 0) throw new Error('expected a negative year');
+test('FIXED F15: exact birthdays and the day either side', () => {
+  const on  = C.ageFromDOB(new Date(2020, 2, 15), new Date(2026, 2, 15));
+  is(on.years, 6);  is(on.months, 0, 'on the birthday:');
+  const day = C.ageFromDOB(new Date(2020, 2, 15), new Date(2026, 2, 16));
+  is(day.years, 6); is(day.months, 0, 'the day after:');
 });
-pending('F15', 'a future DOB should be rejected', () => {
-  is(C.ageFromDOB(new Date(2030, 0, 1), new Date(2026, 8, 5)), null);
+
+test('FIXED F15: a future date of birth is refused', () => {
+  is(C.ageFromDOB(new Date(2030, 0, 1), new Date(2026, 8, 5)), null, 'was -4y 8m:');
+  is(C.ageFromDOB(new Date('nonsense'), new Date(2026, 8, 5)), null);
+});
+
+test('FIXED F15: age from DOB never goes backwards as the date advances', () => {
+  const dob = new Date(2019, 6, 14);
+  let prev = -1;
+  for (let d = 0; d < 2000; d += 7) {
+    const now = new Date(2020, 0, 1 + d);
+    const a = C.ageFromDOB(dob, now);
+    if (!a) continue;
+    const total = a.years * 12 + a.months;
+    if (total < prev) throw new Error(`age went backwards at ${now.toDateString()}`);
+    if (a.months < 0 || a.months > 11) throw new Error(`months out of range: ${a.months}`);
+    prev = total;
+  }
 });
 
 /* ============================== body weights ============================= */
@@ -145,21 +168,30 @@ test('Devine and Janmahasatian at a reference patient', () => {
   eq(C.lbw(80, 180, 'm'), 61.6, 0.5);
 });
 
-test('CURRENT: the two ABW variants disagree when TBW < IBW (F14)', () => {
-  eq(C.abw(45, 170, 'f', false), 45, 0.1, 'patient card:');
-  eq(C.abw(45, 170, 'f', true),  61.2, 0.5, 'drugs tab returns IBW > patient:');
-});
-pending('F14', 'ABW should never exceed the patient', () => {
-  const v = C.abw(45, 170, 'f', true);
-  if (v > 45) throw new Error(`ABW ${v} kg exceeds TBW 45 kg`);
+test('FIXED F14: there is one ABW, and it never exceeds the patient', () => {
+  eq(C.abw(45, 170, 'f'), 45, 0.1, 'was 61 kg on the drugs tab:');
+  eq(C.abw(50, 175, 'm'), 50, 0.1, 'was 70 kg:');
+  eq(C.abw(55, 180, 'm'), 55, 0.1, 'was 75 kg:');
+  for (let wt = 40; wt <= 200; wt += 5) {
+    for (const ht of [155, 170, 185]) {
+      const a = C.abw(wt, ht, 'm');
+      if (a > wt + 1e-9) throw new Error(`ABW ${a} > TBW ${wt} at ${ht} cm`);
+    }
+  }
 });
 
-test('CURRENT: Devine clamps to 0 below its valid range (F19)', () => {
-  eq(C.devineIBW(100, 'f'), 0);
-  eq(C.devineIBW(100, 'm'), 2.6, 0.1);
+test('FIXED F14: ABW is still IBW + 0.4(TBW-IBW) in obesity', () => {
+  eq(C.abw(90, 160, 'f'), 67.4, 0.1);
+  eq(C.abw(120, 180, 'm'), 93, 0.5);
 });
-pending('F19', 'Devine should refuse heights below ~152 cm', () => {
-  is(C.devineIBW(100, 'f'), null);
+
+test('FIXED F19: Devine refuses heights below 152.4 cm', () => {
+  is(C.devineIBW(100, 'f'), null, 'was 0 kg:');
+  is(C.devineIBW(100, 'm'), null, 'was 2.6 kg:');
+  is(C.devineIBW(150, 'f'), null);
+  eq(C.devineIBW(152.4, 'f'), 45.5, 0.01, 'valid at exactly 5 ft:');
+  eq(C.devineIBW(180, 'm'), 75, 0.1);
+  is(C.abw(60, 150, 'f'), null, 'ABW declines too, rather than using a bogus IBW:');
 });
 
 /* ============================== LA toxicity ============================== */
@@ -337,14 +369,18 @@ test('CURRENT: methadone is absent from oMEDD and contributes zero (F8)', () => 
   eq(C.omeddTotal([{ drug: 'Oral methadone', dose: 40 }]), 0, 0, 'silently ignored:');
 });
 
-test('CURRENT: methadone conversion does not round-trip (F16)', () => {
-  const f = C.methadoneToOMEDD(7.5);
-  eq(f.omedd, 30, 0);
-  eq(C.omeddToMethadone(f.omedd).methadone, 5, 0.01, '7.5 mg returns as 5 mg:');
-  eq(C.omeddToMethadone(C.methadoneToOMEDD(50).omedd).methadone, 33.33, 0.01);
+test('FIXED F16: methadone conversion round-trips exactly', () => {
+  [1, 2.5, 5, 6, 7.5, 10, 15, 20, 30, 40, 50, 80, 120].forEach(M => {
+    const back = C.omeddToMethadone(C.methadoneToOMEDD(M).omedd).methadone;
+    eq(back, M, 1e-9, `${M} mg methadone:`);
+  });
 });
-pending('F16', 'methadone conversion should round-trip', () => {
-  eq(C.omeddToMethadone(C.methadoneToOMEDD(7.5).omedd).methadone, 7.5, 0.5);
+
+test('FIXED F16: the reverse direction picks a self-consistent band', () => {
+  [1, 2.5, 5, 7.5, 15, 20, 50, 200].forEach(M => {
+    const f = C.methadoneToOMEDD(M);
+    is(C.ripamontiRatio(f.omedd), f.ratio, `${M} mg: chosen ratio must match its own band:`);
+  });
 });
 
 test('the Ripamonti forward direction matches the on-screen table', () => {

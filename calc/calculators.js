@@ -27,11 +27,16 @@
 
   /* ------------------------------------------------------------ body weight */
 
-  // Devine, metric. F19: unguarded below ~152 cm; clamped to 0 rather than refused.
+  // Devine, metric. Defined from 152.4 cm (5 ft) up; below that it returns
+  // nonsense (100 cm gave 0-2.6 kg) and previously clamped to 0 rather than
+  // declining, which then made ABW 0.4 x TBW. Now returns null (F19 fixed).
+  var DEVINE_MIN_HEIGHT_CM = 152.4;
+
   function devineIBW(heightCm, sex) {
+    if (!(heightCm >= DEVINE_MIN_HEIGHT_CM)) return null;
     var htIn = (heightCm - 152.4) / 2.54;
     var base = sex === 'm' ? 50 : 45.5;
-    return Math.max(0, base + 2.3 * htIn);
+    return base + 2.3 * htIn;
   }
 
   // Janmahasatian lean body weight.
@@ -42,25 +47,30 @@
       : (9270 * weightKg) / (8780 + 244 * bmi);
   }
 
-  // Adjusted body weight. F14: the two call sites in index.html disagree on the
-  // TBW <= IBW branch. `underweightReturnsIBW` reproduces both.
-  //   false -> patient-card behaviour (returns TBW)  — correct
-  //   true  -> drugs-tab behaviour   (returns IBW)  — can exceed the patient
-  function abw(weightKg, heightCm, sex, underweightReturnsIBW) {
+  // Adjusted body weight, single definition. The drugs tab used to return IBW
+  // when TBW <= IBW, which gives an "adjusted" weight LARGER than the patient -
+  // the dangerous direction for anything dosed on ABW. Both call sites now use
+  // this, and it never exceeds actual weight (F14 fixed).
+  function abw(weightKg, heightCm, sex) {
     var ibw = devineIBW(heightCm, sex);
-    if (weightKg > ibw) return ibw + 0.4 * (weightKg - ibw);
-    return underweightReturnsIBW ? ibw : weightKg;
+    if (ibw == null) return null;
+    return weightKg > ibw ? ibw + 0.4 * (weightKg - ibw) : weightKg;
   }
 
   /* ------------------------------------------------------------------- age */
 
-  // F15: Math.max(0,...) swallows the borrow, so the year is never decremented;
-  // a future DOB yields a negative year.
+  // The old version clamped the day-of-month borrow with Math.max(0, mo - 1),
+  // which swallowed it instead of decrementing the year - so the day before a
+  // birthday read as the full year, and could push a child across the 12-month
+  // APLS band. A future date produced a negative age. Both fixed (F15).
   function ageFromDOB(dobDate, nowDate) {
+    if (!(dobDate instanceof Date) || isNaN(dobDate)) return null;
+    if (dobDate > nowDate) return null;                     // not yet born
     var yr = nowDate.getFullYear() - dobDate.getFullYear();
     var mo = nowDate.getMonth() - dobDate.getMonth();
-    if (mo < 0) { yr--; mo += 12; }
-    if (nowDate.getDate() < dobDate.getDate()) mo = Math.max(0, mo - 1);
+    if (nowDate.getDate() < dobDate.getDate()) mo--;        // borrow a month
+    if (mo < 0) { yr--; mo += 12; }                         // then borrow a year
+    if (yr < 0) return null;
     return { years: yr, months: mo };
   }
 
@@ -86,21 +96,26 @@
   // F20 remains open: fractional age sends 5-6y to the 6-12y formula.
   var APLS_MAX_MONTHS = 144;   // 12 years
 
+  // The band is chosen by COMPLETED years, not fractional age. APLS defines
+  // 1-5 and 6-12 with nothing between, and selecting on `yr <= 5` sent every
+  // child from 5.01 years onward to the 6-12 formula - a 5.5-year-old was
+  // estimated at 23.5 kg where the 1-5 band gives 19 (F20 fixed). Within a
+  // band the fractional age is still used, so the curve stays smooth.
   function aplsWeight(totalMonths) {
     var yr = totalMonths / 12;
-    if (!(totalMonths >= 0))          return null;   // negative age (see F15)
-    if (totalMonths < 3)              return null;   // below the validated range
-    if (totalMonths > APLS_MAX_MONTHS) return null;  // F1: APLS stops at 12 years
-    if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
-    if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
+    if (!(totalMonths >= 0))           return null;
+    if (totalMonths < 3)               return null;
+    if (totalMonths > APLS_MAX_MONTHS) return null;
+    if (totalMonths < 12)              return Math.round((totalMonths / 2 + 4) * 10) / 10;
+    if (Math.floor(yr) <= 5)           return Math.round((2 * (yr + 4)) * 10) / 10;
     return Math.round((3 * yr + 7) * 10) / 10;
   }
 
   function aplsFormula(totalMonths) {
     var yr = totalMonths / 12;
     if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
-    if (totalMonths < 12) return '(age_mo / 2) + 4';
-    if (yr <= 5)          return '2 x (age + 4)';
+    if (totalMonths < 12)    return '(age_mo / 2) + 4';
+    if (Math.floor(yr) <= 5) return '2 x (age + 4)';
     return '3 x age + 7';
   }
 
@@ -308,15 +323,35 @@
     return (poMorphineEquiv / 10) * e;
   }
 
-  // F16: the two directions band on different quantities, so they are not
-  // inverses — 7.5 mg methadone round-trips back to 5 mg.
+  // Ripamonti bands the ratio on the oMEDD, so the reverse direction has to
+  // solve for the band rather than band on the methadone dose - which is what
+  // the old version did, using different cut-points, so the two were not
+  // inverses (7.5 mg round-tripped back to 5 mg). Ratios are tried in
+  // ascending order and the first self-consistent one wins, which reproduces
+  // the forward table exactly (F16 fixed).
+  var RIPAMONTI_BANDS = [
+    { maxOmedd: 30,       ratio: 4  },
+    { maxOmedd: 90,       ratio: 6  },
+    { maxOmedd: 300,      ratio: 8  },
+    { maxOmedd: Infinity, ratio: 12 }
+  ];
+
+  function ripamontiRatio(omedd) {
+    return RIPAMONTI_BANDS.find(function (b) { return omedd < b.maxOmedd; }).ratio;
+  }
+
   function methadoneToOMEDD(methadoneDose) {
-    var r = methadoneDose <= 7.5 ? 4 : methadoneDose <= 20 ? 6 : methadoneDose <= 50 ? 8 : 12;
-    return { ratio: r, omedd: methadoneDose * r };
+    for (var i = 0; i < RIPAMONTI_BANDS.length; i++) {
+      var r = RIPAMONTI_BANDS[i].ratio;
+      var candidate = methadoneDose * r;
+      if (ripamontiRatio(candidate) === r) return { ratio: r, omedd: candidate };
+    }
+    var top = RIPAMONTI_BANDS[RIPAMONTI_BANDS.length - 1].ratio;
+    return { ratio: top, omedd: methadoneDose * top };
   }
 
   function omeddToMethadone(omedd) {
-    var r = omedd < 30 ? 4 : omedd < 90 ? 6 : omedd < 300 ? 8 : 12;
+    var r = ripamontiRatio(omedd);
     return { ratio: r, methadone: omedd / r };
   }
 
@@ -377,6 +412,7 @@
     OPIOID_EQUIV: OPIOID_EQUIV, OMEDD_FACTORS: OMEDD_FACTORS,
     toOralMorphine: toOralMorphine, fromOralMorphine: fromOralMorphine,
     methadoneToOMEDD: methadoneToOMEDD, omeddToMethadone: omeddToMethadone,
+    ripamontiRatio: ripamontiRatio, RIPAMONTI_BANDS: RIPAMONTI_BANDS,
     omeddTotal: omeddTotal, omeddWarning: omeddWarning,
     isFixedUnit: isFixedUnit, adultBolus: adultBolus, abxDose: abxDose
   };

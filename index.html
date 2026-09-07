@@ -1027,7 +1027,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#60a5fa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Bolus</div>
             <div style="font-size:12px;color:#bfdbfe;line-height:1.7">
               <strong style="color:#fff">1.5 ml/kg IV</strong> over 1 min<br>
-              (70 kg adult = <strong style="color:#fff">~100 ml</strong>)<br>
+              <span id="last-bolus-calc">(70 kg adult = <strong style="color:#fff">~100 ml</strong>)</span><br>
               Repeat up to <strong>2 more times</strong> at 5 min intervals if no response
             </div>
           </div>
@@ -1035,7 +1035,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#60a5fa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Infusion</div>
             <div style="font-size:12px;color:#bfdbfe;line-height:1.7">
               <strong style="color:#fff">15 ml/kg/hr</strong><br>
-              (70 kg adult = <strong style="color:#fff">~1000 ml/hr</strong>)<br>
+              <span id="last-inf-calc">(70 kg adult = <strong style="color:#fff">~1000 ml/hr</strong>)</span><br>
               Continue until haemodynamically stable<br>
               Max dose: <strong>12 ml/kg</strong>
             </div>
@@ -1100,7 +1100,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#4ade80;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Initial Dose</div>
             <div style="font-size:12px;color:#d1fae5;line-height:1.7">
               <strong style="color:#fff">2.5 mg/kg IV</strong> rapid bolus<br>
-              (70 kg adult = <strong style="color:#fff">~175 mg = 9 vials</strong>)<br>
+              <span id="mh-dantrolene-calc">(70 kg adult = <strong style="color:#fff">~175 mg = 9 vials</strong>)</span><br>
               Each vial = 20 mg dissolved in 60 ml sterile water
             </div>
           </div>
@@ -1872,16 +1872,42 @@ function showTab(id, el) {
 =====
    GLOBAL PATIENT CARD
 ======================================= */
-function calcAgeFromDOB() {
-  var dob = document.getElementById('g-dob').value;
-  if (!dob) return;
-  var d = new Date(dob), now = new Date();
-  var yr = now.getFullYear() - d.getFullYear();
-  var mo = now.getMonth() - d.getMonth();
+// Parse a yyyy-mm-dd input as a LOCAL date. new Date('2000-05-15') is parsed as
+// UTC midnight, which renders as the previous day anywhere west of UTC and can
+// shift an age by a day either side of a birthday.
+function parseDateLocal(val) {
+  if (!val) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+  if (!m) return null;
+  var d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return isNaN(d) ? null : d;
+}
+
+// The old version clamped the day-of-month borrow with Math.max(0, mo - 1),
+// swallowing it instead of decrementing the year - so the day before a birthday
+// read as the full year, which could push a child across the 12-month APLS
+// band. A future date produced a negative age.
+function ageFromDOB(dobDate, nowDate) {
+  if (!dobDate || dobDate > nowDate) return null;
+  var yr = nowDate.getFullYear() - dobDate.getFullYear();
+  var mo = nowDate.getMonth() - dobDate.getMonth();
+  if (nowDate.getDate() < dobDate.getDate()) mo--;
   if (mo < 0) { yr--; mo += 12; }
-  if (now.getDate() < d.getDate()) mo = Math.max(0, mo - 1);
-  document.getElementById('g-yr').value = yr;
-  document.getElementById('g-mo').value = mo;
+  return yr < 0 ? null : { years: yr, months: mo };
+}
+
+function calcAgeFromDOB() {
+  var el  = document.getElementById('g-dob');
+  var dob = parseDateLocal(el.value);
+  var age = dob ? ageFromDOB(dob, new Date()) : null;
+  if (!age) {
+    el.style.borderColor = el.value ? 'var(--red)' : '';
+    el.title = el.value ? 'Date of birth is in the future or not valid' : '';
+    return;
+  }
+  el.style.borderColor = ''; el.title = '';
+  document.getElementById('g-yr').value = age.years;
+  document.getElementById('g-mo').value = age.months;
   syncAge('g');
 }
 
@@ -1976,6 +2002,53 @@ function syncAge(origin) {
   calcPdAge();
 }
 
+/* ---- Body weights: one definition, used by both cards --------------------
+   Devine is defined from 152.4 cm up; below that it returned nonsense (100 cm
+   gave 0-2.6 kg) which was clamped to 0, making ABW 0.4 x TBW. It now declines.
+   ABW had two different implementations: the drugs tab returned IBW when
+   TBW <= IBW, giving an "adjusted" weight LARGER than the patient. ---------- */
+
+const DEVINE_MIN_HEIGHT_CM = 152.4;
+
+function devineIBW(heightCm, sex) {
+  if (!(heightCm >= DEVINE_MIN_HEIGHT_CM)) return null;
+  return (sex === 'm' ? 50 : 45.5) + 2.3 * ((heightCm - 152.4) / 2.54);
+}
+function janmahasatianLBW(wt, heightCm, sex) {
+  const bmi = wt / ((heightCm / 100) * (heightCm / 100));
+  return sex === 'm' ? (9270 * wt) / (6680 + 216 * bmi) : (9270 * wt) / (8780 + 244 * bmi);
+}
+function adjustedBW(wt, heightCm, sex) {
+  const ibw = devineIBW(heightCm, sex);
+  if (ibw == null) return null;
+  return wt > ibw ? ibw + 0.4 * (wt - ibw) : wt;   // never exceeds the patient
+}
+const IBW_TOO_SHORT_NOTE = 'Devine not valid <152 cm';
+
+/* ---- F23: the two most time-critical weight-based doses in the app --------
+   Dantrolene and Intralipid showed a hard-coded 70 kg worked example while the
+   app already knew the patient's weight. They now follow it, and fall back to
+   the 70 kg example when no weight has been entered. --------------------- */
+function updateEmergencyWeightDoses() {
+  var wtEl = document.getElementById('g-wt');
+  var wt = wtEl ? parseFloat(wtEl.value) : NaN;
+  var known = wt > 0;
+  var w = known ? wt : 70;
+  var lead = known ? (Math.round(w * 10) / 10) + ' kg patient = ' : '70 kg adult = ';
+  var b = function (t) { return '<strong style="color:#fff">' + t + '</strong>'; };
+
+  var dan = document.getElementById('mh-dantrolene-calc');
+  if (dan) {
+    var mg = 2.5 * w;
+    dan.innerHTML = '(' + lead + b('~' + Math.round(mg) + ' mg = ' + Math.ceil(mg / 20) + ' vials') + ')';
+  }
+  var lb = document.getElementById('last-bolus-calc');
+  if (lb) lb.innerHTML = '(' + lead + b('~' + Math.round(1.5 * w) + ' ml') + ')';
+  var li = document.getElementById('last-inf-calc');
+  if (li) li.innerHTML = '(' + lead + b('~' + Math.round(15 * w) + ' ml/hr') +
+                          ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
+}
+
 function globalPatientUpdate() {
   var wt  = parseFloat(document.getElementById('g-wt').value);
   var ht  = parseFloat(document.getElementById('g-ht').value);
@@ -1999,6 +2072,8 @@ function globalPatientUpdate() {
   calcPdAge(); calcPaed();
   if(ht||wt) { try{ calcIBW(); }catch(e){} }
 
+  updateEmergencyWeightDoses();
+
   // Body weight boxes
   var boxes = document.getElementById('g-bw-boxes');
   if (!wt) { if(boxes) boxes.style.display='none'; return; }
@@ -2009,51 +2084,35 @@ function globalPatientUpdate() {
   // TBW
   document.getElementById('g-tbw').textContent = rnd(wt) + ' kg';
 
-  // IBW (Devine) — needs height
+  // IBW (Devine) — needs height, and only above 152.4 cm
   var ibwEl = document.getElementById('g-ibw');
   var ibwNote = document.getElementById('g-ibw-note');
   if (ht) {
-    var htIn = (ht - 152.4) / 2.54;
-    var ibwM = Math.max(0, rnd(50 + 2.3 * htIn));
-    var ibwF = Math.max(0, rnd(45.5 + 2.3 * htIn));
-    var ibwVal = sex==='m' ? ibwM : sex==='f' ? ibwF : null;
-    if (ibwVal !== null) {
-      ibwEl.textContent = ibwVal + ' kg';
-      ibwNote.textContent = (sex==='m'?'Male':'Female') + ' · Devine';
-    } else {
-      ibwEl.textContent = ibwM + '/' + ibwF + ' kg';
-      ibwNote.textContent = 'M/F · Devine';
-    }
-    // IBW numeric for ABW calc
-    var ibwNum = sex==='m' ? Math.max(0,50+2.3*htIn) : sex==='f' ? Math.max(0,45.5+2.3*htIn) : Math.max(0,(50+45.5)/2+2.3*htIn);
+    var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
+    var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
+    var abwM = adjustedBW(wt, ht, 'm'),  abwF = adjustedBW(wt, ht, 'f');
+    var lbwEl  = document.getElementById('g-lbw'),  lbwNote = document.getElementById('g-lbw-note');
+    var abwEl  = document.getElementById('g-abw'),  abwNote = document.getElementById('g-abw-note');
 
-    // LBW (Janmahasatian)
-    var bmi = wt / ((ht/100)*(ht/100));
-    var lbwM = rnd((9270*wt)/(6680+216*bmi));
-    var lbwF = rnd((9270*wt)/(8780+244*bmi));
-    var lbwEl = document.getElementById('g-lbw');
-    var lbwNote = document.getElementById('g-lbw-note');
-    if (sex==='m') { lbwEl.textContent=lbwM+' kg'; lbwNote.textContent='Male · Janmahasatian'; }
-    else if (sex==='f') { lbwEl.textContent=lbwF+' kg'; lbwNote.textContent='Female · Janmahasatian'; }
-    else { lbwEl.textContent=lbwM+'/'+lbwF+' kg'; lbwNote.textContent='M/F · Janmahasatian'; }
-
-    // ABW
-    var abwEl = document.getElementById('g-abw');
-    var abwNote = document.getElementById('g-abw-note');
-    var ibwMnum = Math.max(0, 50 + 2.3 * htIn);
-    var ibwFnum = Math.max(0, 45.5 + 2.3 * htIn);
-    var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4*(wt-ibwMnum)) : rnd(wt);
-    var abwF = wt > ibwFnum ? rnd(ibwFnum + 0.4*(wt-ibwFnum)) : rnd(wt);
-    if (sex === 'm') {
-      abwEl.textContent = abwM + ' kg';
-      abwNote.textContent = wt > ibwMnum ? 'Male' : 'TBW ≤ IBW';
-    } else if (sex === 'f') {
-      abwEl.textContent = abwF + ' kg';
-      abwNote.textContent = wt > ibwFnum ? 'Female' : 'TBW ≤ IBW';
-    } else {
-      abwEl.textContent = abwM + '/' + abwF + ' kg';
-      abwNote.textContent = 'M/F';
+    function pair(m, f, unit) {
+      if (m == null || f == null) return '—';
+      return sex === 'm' ? rnd(m) + unit : sex === 'f' ? rnd(f) + unit : rnd(m) + '/' + rnd(f) + unit;
     }
+    function who(base) {
+      return sex === 'm' ? 'Male · ' + base : sex === 'f' ? 'Female · ' + base : 'M/F · ' + base;
+    }
+
+    if (ibwM == null) {
+      ibwEl.textContent = '—';  ibwNote.textContent = IBW_TOO_SHORT_NOTE;
+      abwEl.textContent = '—';  abwNote.textContent = IBW_TOO_SHORT_NOTE;
+    } else {
+      ibwEl.textContent = pair(ibwM, ibwF, ' kg');  ibwNote.textContent = who('Devine');
+      abwEl.textContent = pair(abwM, abwF, ' kg');
+      var usedIbw = sex === 'm' ? ibwM : sex === 'f' ? ibwF : Math.min(ibwM, ibwF);
+      abwNote.textContent = wt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
+    }
+    // LBW is valid at any height
+    lbwEl.textContent = pair(lbwM, lbwF, ' kg');  lbwNote.textContent = who('Janmahasatian');
   } else {
     // No height — can only show TBW
     ['g-ibw','g-lbw','g-abw'].forEach(function(id){ document.getElementById(id).textContent='—'; });
@@ -2095,8 +2154,8 @@ function fmtN(n) {
 // conservative choice in obesity, but for a patient lighter than their ideal
 // weight it RAISED the ceiling - 36-41% above the true limit. Devine is also no
 // longer evaluated below its valid range (152.4 cm), where it produced nonsense
-// (a 100 cm child gave an IBW of 2.5 kg).
-const DEVINE_MIN_HEIGHT_CM = 152.4;
+// (a 100 cm child gave an IBW of 2.5 kg). DEVINE_MIN_HEIGHT_CM is declared with
+// the shared body-weight helpers above.
 
 function getIBW() {
   const ht  = parseFloat(document.getElementById('la-ht').value)    || null;
@@ -2277,15 +2336,19 @@ function aplsWeight(totalMonths) {
   if (!(totalMonths >= 0))           return null; // negative age
   if (totalMonths < 3)               return null; // below the validated range
   if (totalMonths > APLS_MAX_MONTHS) return null; // APLS stops at 12 years
-  if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
-  if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
+  // Banded on COMPLETED years. APLS defines 1-5 and 6-12 with nothing between,
+  // and selecting on `yr <= 5` sent every child from 5.01 years to the 6-12
+  // formula - a 5.5-year-old was estimated at 23.5 kg where the 1-5 band gives
+  // 19. Fractional age is still used within a band, so the curve stays smooth.
+  if (totalMonths < 12)    return Math.round((totalMonths / 2 + 4) * 10) / 10;
+  if (Math.floor(yr) <= 5) return Math.round((2 * (yr + 4)) * 10) / 10;
   return Math.round((3 * yr + 7) * 10) / 10;
 }
 function aplsFormula(totalMonths) {
   const yr = totalMonths / 12;
   if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
-  if (totalMonths < 12) return '(age_mo / 2) + 4';
-  if (yr <= 5)          return '2 x (age + 4)';
+  if (totalMonths < 12)    return '(age_mo / 2) + 4';
+  if (Math.floor(yr) <= 5) return '2 x (age + 4)';
   return '3 x age + 7';
 }
 
@@ -2343,7 +2406,7 @@ const PD_CATS = {
   ],
   'Induction': [
     { n: 'Fentanyl',                 doseStr: '2',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], maxDose: 200, note: 'Max 200 mcg' },
-    { n: 'Ketamine (IM)',            doseStr: '5',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
+    { n: 'Ketamine (IM)',            doseStr: '5',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '100 mg/mL', mgml: 100 }, { c: '50 mg/mL', mgml: 50 }], note: 'Use a concentrated preparation for IM - at 10 mg/mL this dose is an impractical volume' },
     { n: 'Ketamine (IV)',            doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Propofol',                 doseStr: '3',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
   ],
@@ -3166,22 +3229,20 @@ function calcBodyWeights() {
   var disp = document.getElementById('dd-bw-display');
   if (!wt || !ht) { disp.style.display = 'none'; return; }
   function rnd(v) { return Math.round(v); }
-  // Devine formula (height in cm, convert to inches over 60)
-  var htIn = (ht - 152.4) / 2.54;
-  var ibwM = Math.max(0, rnd(50 + 2.3 * htIn));
-  var ibwF = Math.max(0, rnd(45.5 + 2.3 * htIn));
-  // LBW: Janmahasatian formula
-  var bmi = wt / ((ht / 100) * (ht / 100));
-  var lbwM = rnd((9270 * wt) / (6680 + 216 * bmi));
-  var lbwF = rnd((9270 * wt) / (8780 + 244 * bmi));
-  // ABW: IBW + 0.4*(TBW - IBW)
-  var ibwMnum = Math.max(0, 50 + 2.3 * htIn);
-  var ibwFnum = Math.max(0, 45.5 + 2.3 * htIn);
-  var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4 * (wt - ibwMnum)) : ibwM;
-  var abwF = wt > ibwFnum ? rnd(ibwFnum + 0.4 * (wt - ibwFnum)) : ibwF;
-  document.getElementById('dd-ibw').textContent = ibwM + '/' + ibwF + ' kg (M/F)';
-  document.getElementById('dd-lbw').textContent = lbwM + '/' + lbwF + ' kg (M/F)';
-  document.getElementById('dd-abw').textContent = abwM + '/' + abwF + ' kg (M/F)';
+
+  // Same shared helpers as the patient card. This tab used to have its own copy
+  // that returned IBW when TBW <= IBW, so a 45 kg patient was shown an
+  // "adjusted body weight" of 61 kg - larger than the patient.
+  var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
+  var abwM = adjustedBW(wt, ht, 'm'), abwF = adjustedBW(wt, ht, 'f');
+  var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
+
+  document.getElementById('dd-ibw').textContent =
+    ibwM == null ? IBW_TOO_SHORT_NOTE : rnd(ibwM) + '/' + rnd(ibwF) + ' kg (M/F)';
+  document.getElementById('dd-abw').textContent =
+    abwM == null ? IBW_TOO_SHORT_NOTE : rnd(abwM) + '/' + rnd(abwF) + ' kg (M/F)';
+  document.getElementById('dd-lbw').textContent = rnd(lbwM) + '/' + rnd(lbwF) + ' kg (M/F)';
+
   disp.style.display = 'flex';
   disp.style.alignItems = 'center';
   disp.style.gap = '4px';
@@ -3258,6 +3319,29 @@ function renderAnticoagTable() {
 /* =======================================
    OPIOID CONVERSION
 ======================================= */
+// Ripamonti bands the ratio on the oMEDD, so converting FROM methadone has to
+// solve for the band rather than band on the methadone dose. The old code used
+// different cut-points in each direction, so they were not inverses - 7.5 mg
+// methadone round-tripped back to 5 mg. Ratios are tried in ascending order and
+// the first self-consistent one wins, which reproduces the displayed table.
+const RIPAMONTI_BANDS = [
+  { maxOmedd: 30,       ratio: 4  },
+  { maxOmedd: 90,       ratio: 6  },
+  { maxOmedd: 300,      ratio: 8  },
+  { maxOmedd: Infinity, ratio: 12 }
+];
+function ripamontiRatio(omedd) {
+  return RIPAMONTI_BANDS.find(b => omedd < b.maxOmedd).ratio;
+}
+function methadoneToOMEDD(methadoneDose) {
+  for (const b of RIPAMONTI_BANDS) {
+    const candidate = methadoneDose * b.ratio;
+    if (ripamontiRatio(candidate) === b.ratio) return { ratio: b.ratio, omedd: candidate };
+  }
+  const top = RIPAMONTI_BANDS[RIPAMONTI_BANDS.length - 1].ratio;
+  return { ratio: top, omedd: methadoneDose * top };
+}
+
 // All values = equivalent mg (or mcg for fentanyl) to 10 mg PO morphine
 const OPIOIDS = [
   { key:'po_morphine',      label:'PO Morphine',       equiv:10,   unit:'mg',  isFentanyl:false },
@@ -3289,8 +3373,7 @@ function calcOpioid() {
   let poMorphineEquiv = null;
   if (hasCalc) {
     if (refOp.isMethadone) {
-      const mRefRatio = doseRaw <= 7.5 ? 4 : doseRaw <= 20 ? 6 : doseRaw <= 50 ? 8 : 12;
-      poMorphineEquiv = doseRaw * mRefRatio;
+      poMorphineEquiv = methadoneToOMEDD(doseRaw).omedd;
     } else {
       poMorphineEquiv = (doseRaw / refOp.equiv) * 10;
     }
@@ -3310,8 +3393,7 @@ function calcOpioid() {
     if (hasCalc && poMorphineEquiv !== null) {
       if (op.isMethadone) {
         // Ripamonti: ratio depends on the total oMEDD (= poMorphineEquiv)
-        const mRatio = poMorphineEquiv < 30 ? 4 : poMorphineEquiv < 90 ? 6 : poMorphineEquiv < 300 ? 8 : 12;
-        calcStr = fmtN(poMorphineEquiv / mRatio) + ' mg';
+        calcStr = fmtN(poMorphineEquiv / ripamontiRatio(poMorphineEquiv)) + ' mg';
       } else {
         const val = (poMorphineEquiv / 10) * op.equiv;
         calcStr = fmtN(val) + ' ' + op.unit;
@@ -3754,6 +3836,17 @@ function buildRegList() {
   });
 }
 
+// Every block's LA volume is a static suggestion with no weight input. The
+// "do not exceed max dose" caveat was on some blocks and not others; it is now
+// appended to all of them, with a link to the LA calculator.
+const LA_CAVEAT = 'Check against the maximum dose for this patient - see the LA Toxicity calculator.';
+
+function laCaveat(text) {
+  return /max dose|maximum dose/i.test(text || '')
+    ? text
+    : (text ? text + ' ' : '') + LA_CAVEAT;
+}
+
 function showBlock(id, group) {
   regCurrentBlock = id;
   // Highlight selected
@@ -3825,7 +3918,7 @@ function showBlock(id, group) {
         ${row('Needle', b.needle)}
         ${row('Best view', b.bestView)}
         ${row('Technique', b.technique)}
-        ${row('LA volume', b.la)}
+        ${row('LA volume', laCaveat(b.la))}
         ${row('Depth', b.depth)}
         ${riskRow(b.risks)}
         ${b.tips ? `<div style="margin-top:12px;padding:10px 14px;background:var(--blue3);border-left:3px solid var(--blue2);border-radius:0 var(--r) var(--r) 0">

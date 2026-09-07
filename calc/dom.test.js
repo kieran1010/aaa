@@ -229,6 +229,94 @@ test('F9: maintenance fluid follows Holliday-Segar and carries a unit', () => {
   });
 });
 
+/* --------------------------- Tier 3 in the page --------------------------- */
+
+test('F14/F19: the two body-weight displays agree, and never exceed the patient', () => {
+  const p = page().set('g-wt', 45).set('g-ht', 170).change('g-sex', 'f');
+  is(p.text('g-abw'), '45 kg', 'patient card ABW = TBW:');
+  p.set('dd-wt', 45).set('dd-ht', 170);
+  const dd = p.text('dd-abw');
+  if (!/^45\/45 kg/.test(dd)) throw new Error(`drugs tab disagrees: ${dd} (was 61/61)`);
+});
+
+test('F19: below 152 cm both displays decline rather than showing 0 kg', () => {
+  const p = page().set('g-wt', 40).set('g-ht', 140).change('g-sex', 'f');
+  is(p.text('g-ibw'), '—');
+  if (!/not valid/i.test(p.text('g-ibw-note'))) throw new Error(p.text('g-ibw-note'));
+  p.set('dd-wt', 40).set('dd-ht', 140);
+  if (!/not valid/i.test(p.text('dd-ibw'))) throw new Error(p.text('dd-ibw'));
+});
+
+test('F19: LBW is still shown below 152 cm, where it is valid', () => {
+  const p = page().set('g-wt', 40).set('g-ht', 140).change('g-sex', 'f');
+  if (p.text('g-lbw') === '—') throw new Error('LBW should still be available');
+});
+
+test('F15/F25: a date of birth gives the right age either side of a birthday', () => {
+  const p = page();
+  const el = p.d.getElementById('g-dob');
+  const today = new Date();
+  const dob = new Date(today.getFullYear() - 6, today.getMonth(), today.getDate() + 1);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  el.value = iso(dob);
+  el.dispatchEvent(new p.W.Event('input', { bubbles: true }));
+  is(p.val('g-yr'), '5', 'the day before the 6th birthday is 5, not 6:');
+  is(p.val('g-mo'), '11');
+});
+
+test('F15: a future date of birth is refused and flagged', () => {
+  const p = page();
+  const el = p.d.getElementById('g-dob');
+  el.value = `${new Date().getFullYear() + 3}-01-01`;
+  el.dispatchEvent(new p.W.Event('input', { bubbles: true }));
+  is(p.val('g-yr'), '', 'no age written:');
+  if (!el.style.borderColor) throw new Error('not flagged');
+});
+
+test('F20: a 5.5-year-old is estimated in the 1-5y band', () => {
+  const p = page().set('pd-yr', 5).set('pd-mo', 6);
+  is(p.text('pd-apls-wt'), '19 kg', 'was 23.5 kg:');
+  is(p.text('pd-apls-formula'), '2 x (age + 4)');
+});
+
+test('F23: dantrolene and Intralipid follow the entered weight', () => {
+  const p = page().set('g-wt', 100);
+  const dan = p.text('mh-dantrolene-calc');
+  if (!/250 mg/.test(dan) || !/13 vials/.test(dan)) throw new Error(`dantrolene: ${dan}`);
+  const lb = p.text('last-bolus-calc');
+  if (!/150 ml/.test(lb)) throw new Error(`intralipid bolus: ${lb}`);
+  const li = p.text('last-inf-calc');
+  if (!/1500 ml\/hr/.test(li)) throw new Error(`intralipid infusion: ${li}`);
+  if (!/1200 ml/.test(li)) throw new Error(`max total missing: ${li}`);
+});
+
+test('F23: with no weight entered they still show the 70 kg example', () => {
+  const p = page();
+  if (!/70 kg adult/.test(p.text('mh-dantrolene-calc'))) throw new Error(p.text('mh-dantrolene-calc'));
+  if (!/175 mg = 9 vials/.test(p.text('mh-dantrolene-calc'))) throw new Error(p.text('mh-dantrolene-calc'));
+});
+
+test('F16: methadone round-trips through the conversion tab', () => {
+  const p = page();
+  const sel = p.d.getElementById('oc-ref');
+  sel.value = 'po_methadone';
+  sel.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  p.set('oc-dose', 15);
+  const rows = [...p.d.querySelectorAll('#opioid-tbody tr')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
+  const morphine = rows.find(r => /^PO Morphine/.test(r));
+  if (!/120/.test(morphine)) throw new Error(`15 mg methadone should be 120 mg oMEDD: ${morphine}`);
+  const meth = rows.find(r => /^PO Methadone/.test(r));
+  if (!/15(\.0)? mg/.test(meth)) throw new Error(`should return 15 mg, not drift: ${meth}`);
+});
+
+test('F26: IM ketamine volume is practical', () => {
+  const p = page().set('pd-wt', 20).cat('Induction');
+  const r = p.row(/^Ketamine \(IM\)/);
+  if (!/1\.00 mL/.test(r)) throw new Error(`expected 1.00 mL at 100 mg/mL, got: ${r}`);
+  // The concentration itself is asserted in data.test.js; the note deliberately
+  // mentions 10 mg/mL, so match on the rendered volume only.
+});
+
 /* --------------------------- the Tier 1 fixes ---------------------------- */
 
 test('F1: an adult age is refused on the paediatric tab', () => {

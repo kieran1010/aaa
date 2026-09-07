@@ -220,6 +220,35 @@ test('FIXED F8: the oMEDD tab says methadone is excluded', () => {
   if (!/Reduce by 25&ndash;50% when rotating/.test(D.SRC)) throw new Error('cross-tolerance warning missing');
 });
 
+test('FIXED F26: IM ketamine offers a concentration that gives a usable volume', () => {
+  const k = D.PD_DRUGS.find(d => d.n === 'Ketamine (IM)');
+  const vol = 5 * 20 / k.concs[0].mgml;      // 5 mg/kg for a 20 kg child
+  if (vol > 3) throw new Error(`${vol} mL IM at ${k.concs[0].c} — was 10 mL at 10 mg/mL`);
+});
+
+test('FIXED F22: every regional block LA volume carries the max-dose caveat', () => {
+  if (!/const LA_CAVEAT/.test(D.SRC)) throw new Error('LA_CAVEAT not defined');
+  if (!/laCaveat\(b\.la\)/.test(D.SRC)) throw new Error('caveat not applied in the block renderer');
+});
+
+test('FIXED F23: dantrolene and Intralipid follow the patient weight', () => {
+  ['mh-dantrolene-calc', 'last-bolus-calc', 'last-inf-calc'].forEach(id => {
+    if (!new RegExp('id="' + id + '"').test(D.SRC)) throw new Error(`${id} placeholder missing`);
+  });
+  if (!/function updateEmergencyWeightDoses/.test(D.SRC)) throw new Error('recalculation missing');
+  if (!/updateEmergencyWeightDoses\(\);/.test(D.SRC)) throw new Error('never called');
+});
+
+test('FIXED F14/F19: one shared body-weight implementation', () => {
+  const devine = (D.SRC.match(/function devineIBW/g) || []).length;
+  const abw    = (D.SRC.match(/function adjustedBW/g) || []).length;
+  is(devine, 1, 'devineIBW defined once:');
+  is(abw, 1, 'adjustedBW defined once:');
+  is((D.SRC.match(/function janmahasatianLBW/g) || []).length, 1, 'LBW defined once:');
+  // the old per-tab copies had no named function at all
+  if (/var lbwM = rnd\(\(9270/.test(D.SRC)) throw new Error('an inline LBW copy remains');
+});
+
 /* ------------------- concentration / unit sanity across paeds ------------- */
 
 test('every paediatric concentration is a positive number or explicitly null', () => {

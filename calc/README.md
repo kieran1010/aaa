@@ -3,10 +3,10 @@
 Pure calculation logic lifted out of `index.html` so it can be tested. See
 `../CALCULATOR_AUDIT.md` for the findings these files refer to by ID.
 
-**F1, F2, F3, F4 and F12 are fixed** in both the module and `index.html`
-(Addendum C of the audit). Everything else still reproduces current behaviour
-exactly, defects included — that is the safety net the remaining fixes get
-applied against.
+**27 of the 30 findings are fixed** in both the module and `index.html`
+(Addenda C–F of the audit). Only F6, F28 and F29 remain, all held deliberately —
+see §F.9 of the report. The six `pending()` tests that hold them fail today by
+design.
 
 ## Files
 
@@ -25,9 +25,11 @@ No dependencies, no install. Node only.
 ```sh
 ./calc/run-all.sh               # everything
 
+node calc/syntax.test.js        # index.html parses; every inline handler resolves
 node calc/equivalence.js        # must PASS before you trust anything below
-node calc/calculators.test.js   # 38 passing, 14 pending
-node calc/data.test.js          # 16 passing,  3 pending
+node calc/calculators.test.js   # 52 passing, 4 pending
+node calc/data.test.js          # 30 passing, 2 pending
+node calc/dom.test.js           # 38 passing  (needs jsdom)
 ```
 
 `equivalence.js` exits non-zero on any divergence from `index.html`.
@@ -64,12 +66,14 @@ step can be taken later and verified.
 
 ## Pending tests
 
-17 across the two suites, one or more per open finding: F5, F6, F7, F9, F14,
-F15, F16, F19, F20, F24, F28/F29. Each fails today by design and names its
-finding.
+Six, holding the three findings that are deliberately unfixed:
 
-F1, F2, F3, F4 and F12 no longer appear here — their pending tests were promoted
-to `test()` when the fixes landed.
+| Finding | Why it is held |
+|---|---|
+| **F6** | The opioid conversion tab and the oMEDD tab disagree by 2× on IV fentanyl. Reconciling means choosing a factor table — a clinical decision, and ANZCA's value matches neither of the app's. |
+| **F28 / F29** | Tramadol and tapentadol factors, provisional on search-derived evidence. That is what produced the retracted F27; they need a read of ANZCA PS01(PM) Appendix 2. |
+
+Every other finding's pending test was promoted to `test()` as its fix landed.
 
 F28/F29 are marked **provisional** in the audit — the ANZCA values behind them
 could not be read from the primary document from this environment. Confirm
