@@ -366,8 +366,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card">
     <div class="slabel">Patient</div>
     <div class="row" style="margin-bottom:12px">
-      <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="calcPdAge()"></div>
-      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" max="11" style="width:70px" oninput="calcPdAge()"></div>
+      <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="syncAge('pd')"></div>
+      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" style="width:70px" oninput="syncAge('pd')"></div>
       <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.5" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
     </div>
     <div id="pd-wt-summary" style="display:none">
@@ -556,11 +556,11 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div class="field">
         <label>Age (yrs)</label>
-        <input type="number" id="g-yr" placeholder="0" min="0" max="120" style="width:65px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-yr" placeholder="0" min="0" max="120" style="width:65px" oninput="syncAge('g')">
       </div>
       <div class="field">
         <label>Months</label>
-        <input type="number" id="g-mo" placeholder="0" min="0" max="11" style="width:55px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-mo" placeholder="0" min="0" style="width:55px" oninput="syncAge('g')">
       </div>
     </div>
     <div id="g-bw-boxes" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
@@ -1881,7 +1881,47 @@ function calcAgeFromDOB() {
   if (now.getDate() < d.getDate()) mo = Math.max(0, mo - 1);
   document.getElementById('g-yr').value = yr;
   document.getElementById('g-mo').value = mo;
+  syncAge('g');
+}
+
+/* ---- Age: one source of truth, synced both ways, always normalised -------
+   Either card may be typed into. Whichever is edited, the value is normalised
+   (any months >= 12 roll into years) and written to both, so the home card and
+   the paediatric calculator can never disagree. -------------------------- */
+
+function normaliseAge(yr, mo) {
+  var total = (yr || 0) * 12 + (mo || 0);
+  if (!(total >= 0)) total = 0;
+  return { years: Math.floor(total / 12), months: total % 12, totalMonths: total };
+}
+
+var _ageSyncing = false;
+
+function syncAge(origin) {
+  if (_ageSyncing) return;              // re-entrancy guard
+  _ageSyncing = true;
+  try {
+    var prefix = origin === 'pd' ? 'pd' : 'g';
+    var rawYr = document.getElementById(prefix + '-yr').value;
+    var rawMo = document.getElementById(prefix + '-mo').value;
+    var blank = rawYr.trim() === '' && rawMo.trim() === '';
+    var n = normaliseAge(parseInt(rawYr, 10) || 0, parseInt(rawMo, 10) || 0);
+
+    ['g', 'pd'].forEach(function (p) {
+      var y = document.getElementById(p + '-yr');
+      var m = document.getElementById(p + '-mo');
+      if (!y || !m) return;
+      if (blank) { y.value = ''; m.value = ''; return; }
+      // Only write when the value actually differs, so the caret is not reset
+      // on every keystroke in the field being typed into.
+      if (y.value !== String(n.years))  y.value  = n.years;
+      if (m.value !== String(n.months)) m.value = n.months;
+    });
+  } finally {
+    _ageSyncing = false;
+  }
   globalPatientUpdate();
+  calcPdAge();
 }
 
 function globalPatientUpdate() {
@@ -1896,8 +1936,10 @@ function globalPatientUpdate() {
   var laHt=document.getElementById('la-ht'); if(laHt&&ht) laHt.value=ht;
   var laWt=document.getElementById('la-wt'); if(laWt&&wt) laWt.value=wt;
   var ddHt=document.getElementById('dd-ht'); if(ddHt&&ht) ddHt.value=ht;
-  var pdYr=document.getElementById('pd-yr'); if(pdYr) pdYr.value=yr;
-  var pdMo=document.getElementById('pd-mo'); if(pdMo) pdMo.value=mo;
+  // Age is NOT propagated from here. It used to be, unconditionally, so any
+  // change to weight/height/sex wrote parseInt('')||0 into the paediatric age
+  // fields and silently wiped an age the user had already entered. Age is now
+  // owned by syncAge(), which keeps both cards in step in both directions.
   var laSex=document.getElementById('la-sex'); if(laSex&&sex) laSex.value=sex;
 
   // Trigger calcs in other tabs
@@ -2210,8 +2252,11 @@ function calcPdAge() {
   summary.style.display = 'block';
 
   const apls = aplsWeight(totalMonths);
+  var shown = normaliseAge(yr, mo);
   document.getElementById('pd-age-display').textContent =
-    totalMonths > 0 ? (yr > 0 ? yr + 'y ' : '') + mo + 'm' : '-';
+    totalMonths > 0
+      ? (shown.years > 0 ? shown.years + 'y ' + shown.months + 'm' : shown.months + 'm')
+      : '-';
   document.getElementById('pd-apls-wt').textContent     = apls != null ? apls + ' kg' : 'N/A';
   document.getElementById('pd-apls-formula').textContent = totalMonths > 0 ? aplsFormula(totalMonths) : '';
 

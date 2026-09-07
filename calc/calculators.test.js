@@ -82,13 +82,38 @@ pending('F20', '5-6y should not be over-estimated by the 6-12y formula', () => {
   if (w > 21) throw new Error(`5.5y estimated at ${w} kg; APLS 1-5y band gives 19 kg`);
 });
 
-test('formatPaedAge normalisation (F24)', () => {
-  is(C.formatPaedAge(0, 17, 17), '17m', 'CURRENT:');
-  is(C.formatPaedAge(1, 17, 29), '1y 17m', 'CURRENT:');
-  is(C.formatPaedAge(1, 5, 17), '1y 5m', 'already correct when entered normally:');
+test('FIXED F24: the age display normalises months into years', () => {
+  is(C.formatPaedAge(0, 17, 17), '1y 5m', 'was "17m":');
+  is(C.formatPaedAge(1, 17, 29), '2y 5m', 'was "1y 17m":');
+  is(C.formatPaedAge(1, 5, 17), '1y 5m', 'unchanged when entered normally:');
+  is(C.formatPaedAge(0, 7, 7), '7m', 'under a year stays in months:');
+  is(C.formatPaedAge(4, 0, 48), '4y 0m');
+  is(C.formatPaedAge(0, 0, 0), '-', 'nothing entered:');
 });
-pending('F24', 'age display should normalise months into years', () => {
-  is(C.formatPaedAge(0, 17, 17), '1y 5m');
+
+test('normaliseAge rolls months into years', () => {
+  const n = (y, m) => { const r = C.normaliseAge(y, m); return `${r.years}y${r.months}m`; };
+  is(n(0, 17), '1y5m');
+  is(n(0, 12), '1y0m');
+  is(n(0, 11), '0y11m');
+  is(n(0, 23), '1y11m');
+  is(n(0, 24), '2y0m');
+  is(n(1, 17), '2y5m', 'existing years are carried:');
+  is(n(2, 30), '4y6m');
+  is(n(3, 0),  '3y0m', 'already normalised is left alone:');
+  is(n(0, 0),  '0y0m');
+});
+
+test('normaliseAge is total-months preserving', () => {
+  for (let t = 0; t <= 300; t++) {
+    const r = C.normaliseAge(0, t);
+    if (r.years * 12 + r.months !== t) throw new Error(`lost months at ${t}`);
+    if (r.months > 11 || r.months < 0) throw new Error(`months out of range at ${t}`);
+  }
+});
+
+test('normaliseAge clamps a negative age to zero', () => {
+  is(C.normaliseAge(-4, 0).totalMonths, 0);
 });
 
 /* ================================ age / DOB ============================== */

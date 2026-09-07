@@ -3,7 +3,7 @@
 **Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
-**Status:** **F1, F2, F3, F4 and F12 are FIXED** (see Addendum C). The remaining findings are open.
+**Status:** **F1, F2, F3, F4, F12, F24 and F30 are FIXED** (Addenda C and D). The remaining findings are open.
 **Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
 **Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
@@ -82,9 +82,10 @@ examples are in §9.
 | **F21** | **C3** | Adult drugs | Propofol infusion range (25–75 mcg/kg/min) contradicts its own note (50–150) |
 | **F22** | **C3** | Regional | Block LA volumes are static text with no weight input and no link to the LA calculator |
 | **F23** | **C3** | Emergency | Dantrolene and Intralipid show hard-coded 70 kg examples, ignoring the global patient card |
-| **F24** | **C4** | Paed | Age display renders "17m" and "1y 17m" rather than normalising to years + months |
+| **F24** | ~~C4~~ **FIXED** | Paed | Age now normalises on entry — 17 months resolves to 1y 5m in the fields and the display, on both cards. *(Addendum D)* |
 | **F25** | **C4** | Consent | `new Date()` on a date input is parsed as UTC — DOB can render one day early outside NZ |
 | **F26** | **C4** | Paed drugs | IM ketamine at 10 mg/mL implies 10 mL IM for a 20 kg child |
+| **F30** | ~~C2~~ **FIXED** | Global ↔ paed | **New.** Typing a weight silently wiped an age entered on the paediatric tab, changing the recommended ETT size. Age sync is now two-way and non-destructive. *(Addendum D)* |
 | ~~**F27**~~ | — | Paed weight | ~~Superseded APLS formulae~~ — **WITHDRAWN, see Addendum B.** The app's formulae are current APLS and match at every month 0–12 y. The finding was based on the Best Guess formulae misread as an APLS update. |
 | **F28** | **C2** *(provisional)* | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A; provisional per B.1)* |
 | **F29** | **C3** *(provisional)* | Opioids | Tapentadol factor 0.4; ANZCA gives **0.3** *(Addendum A; provisional per B.1)* |
@@ -1167,3 +1168,100 @@ design and names its finding.
 **F28/F29 remain provisional and were deliberately not applied.** Changing an
 opioid conversion factor on search-derived evidence is exactly the move that
 produced the retracted F27. Those need a read of ANZCA PS01(PM) Appendix 2 first.
+
+---
+
+# Addendum D — Age handling
+
+**7 September 2026.** Fixes **F24**, and a data-loss bug the original audit missed
+and is recorded here as **F30**.
+
+## D.1 F30 — entering a weight silently wiped the age (new, was C2)
+
+`globalPatientUpdate()` propagated age to the paediatric tab unconditionally:
+
+```js
+var pdYr=document.getElementById('pd-yr'); if(pdYr) pdYr.value=yr;   // yr = parseInt('')||0
+```
+
+`globalPatientUpdate()` runs on **any** change to weight, height or sex. When the
+home card's age fields were empty — which they are whenever the user typed the age
+on the paediatric tab instead — `yr` and `mo` evaluated to `0`, and those zeroes
+were written straight over the age the user had just entered.
+
+The trigger is the ordinary workflow. `backpopulateWeight()` fires on `pd-wt`,
+calls `globalPatientUpdate()`, and wipes the age:
+
+| Step | Home | Paediatric |
+|---|---|---|
+| enter 3y 6m on the paediatric tab | `—` | `3y 6m` |
+| type a weight in the box beside it | `—` | **`0y 0m`** |
+
+**Why it was easy to miss.** Doses stayed correct, because `getPdWt()` prefers an
+entered actual weight over the APLS estimate. The damage was on the **airway** tab,
+which reads `pd-yr`/`pd-mo` directly: with the age zeroed it fell through to the
+`wt/2 - 4` fallback (F5a) and silently returned different tube sizes. Entering a
+weight — an action that should only ever refine the estimate — changed the
+recommended ETT.
+
+This is the class of defect that unit tests do not catch: every function was
+behaving as written. It needed a test that drives the actual page, which is why
+`calc/dom.test.js` now exists.
+
+## D.2 Age is now synced both ways and always normalised
+
+Age propagation is out of `globalPatientUpdate()` entirely and owned by a single
+`syncAge(origin)`. Either card may be typed into; whichever is edited, the value is
+normalised and written to both.
+
+- **Both directions.** Previously home → paediatric only. Typing an age on the
+  paediatric tab left the home card blank.
+- **Normalised on entry (F24).** Any months ≥ 12 roll into years, in the *fields*
+  as well as the display, so the two cards can never disagree.
+- **Non-destructive.** Weight, height, sex and DOB no longer touch the age fields.
+  A re-entrancy guard prevents the two cards ping-ponging, and each field is
+  written only when the value actually differs, so the caret is not reset while
+  typing.
+
+| Entered | Fields become | Display reads |
+|---|---|---|
+| 17 months | 1y 5m | `1y 5m` |
+| 12 months | 1y 0m | `1y 0m` |
+| 23 months | 1y 11m | `1y 11m` |
+| 1y + 17m | 2y 5m | `2y 5m` |
+| 30 months (home card) | 2y 6m | `2y 6m` |
+| 11 months | 0y 11m | `11m` |
+
+The stray `max="11"` was also dropped from both months inputs — it never enforced
+anything (F13), and now that 17 resolves to 1y 5m the constraint is meaningless.
+
+## D.3 New test suite: `calc/dom.test.js`
+
+The other suites test logic and data. This one tests **wiring** — which handler
+fires, what it writes where, and what the user ends up seeing. 16 tests, covering
+the age sync in both directions, normalisation from either card, clearing,
+DOB-driven population, the airway-stability regression from F30, and each of the
+Tier 1 fixes as rendered.
+
+It needs jsdom, which this repo does not depend on (it ships as one static HTML
+file). The test **skips cleanly** when jsdom is absent, so `run-all.sh` stays
+dependency-free:
+
+```sh
+npm install --no-save jsdom && node calc/dom.test.js
+```
+
+`calc/syntax.test.js` was added at the same time: it parses the inline script and
+checks that every `oninput`/`onclick`/`onchange` handler resolves to a defined
+function — 49 of them. A botched edit to a 2,300-line inline script otherwise
+fails silently in the browser.
+
+## D.4 Verification
+
+| | |
+|---|---|
+| Syntax | 2,382 lines parse; all 49 inline handlers resolve |
+| Equivalence | 11,263 checks, 0 mismatches |
+| Logic tests | 41 passed, 0 failed, 13 pending |
+| Data tests | 16 passed, 0 failed, 3 pending |
+| DOM tests | 16 passed, 0 failed |

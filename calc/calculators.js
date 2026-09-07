@@ -64,10 +64,18 @@
     return { years: yr, months: mo };
   }
 
-  // F24: built from the raw fields, so 17 months renders as "17m", not "1y 5m".
+  // Any months >= 12 roll into years. Both age cards normalise through this, so
+  // 17 months entered anywhere becomes 1y 5m everywhere (F24 fixed).
+  function normaliseAge(yr, mo) {
+    var total = (yr || 0) * 12 + (mo || 0);
+    if (!(total >= 0)) total = 0;
+    return { years: Math.floor(total / 12), months: total % 12, totalMonths: total };
+  }
+
   function formatPaedAge(yr, mo, totalMonths) {
     if (!(totalMonths > 0)) return '-';
-    return (yr > 0 ? yr + 'y ' : '') + mo + 'm';
+    var n = normaliseAge(yr, mo);
+    return n.years > 0 ? n.years + 'y ' + n.months + 'm' : n.months + 'm';
   }
 
   /* -------------------------------------------------- paediatric weight/APLS */
@@ -305,7 +313,7 @@
   return {
     fmtN: fmtN, roundHalfUp: roundHalfUp,
     devineIBW: devineIBW, lbw: lbw, abw: abw,
-    ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge,
+    ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     parseDoseRange: parseDoseRange, calcDose: calcDose, applyMaxDose: applyMaxDose,
     paracetamolIVDose: paracetamolIVDose,
