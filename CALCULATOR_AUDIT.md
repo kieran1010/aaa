@@ -4,7 +4,8 @@
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
 **Status:** findings only — **no code has been changed**
-**Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent — see **Addendum A**, which resolves the clinical values and adds F27–F29
+**Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
+**Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
 ---
 
@@ -84,9 +85,9 @@ examples are in §9.
 | **F24** | **C4** | Paed | Age display renders "17m" and "1y 17m" rather than normalising to years + months |
 | **F25** | **C4** | Consent | `new Date()` on a date input is parsed as UTC — DOB can render one day early outside NZ |
 | **F26** | **C4** | Paed drugs | IM ketamine at 10 mg/mL implies 10 mL IM for a 20 kg child |
-| **F27** | **C2** | Paed weight | Superseded APLS formulae — 2 kg low across the whole 1–5 y band; 13 % shortfall in defibrillation energy and fluid bolus *(Addendum A)* |
-| **F28** | **C2** | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A)* |
-| **F29** | **C3** | Opioids | Tapentadol factor 0.4; ANZCA gives **0.3** *(Addendum A)* |
+| ~~**F27**~~ | — | Paed weight | ~~Superseded APLS formulae~~ — **WITHDRAWN, see Addendum B.** The app's formulae are current APLS and match at every month 0–12 y. The finding was based on the Best Guess formulae misread as an APLS update. |
+| **F28** | **C2** *(provisional)* | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A; provisional per B.1)* |
+| **F29** | **C3** *(provisional)* | Opioids | Tapentadol factor 0.4; ANZCA gives **0.3** *(Addendum A; provisional per B.1)* |
 
 ---
 
@@ -748,7 +749,12 @@ Both are now carried as findings F28 and F29 below.
 
 ## A.2 New findings
 
-### F27 — Paediatric weight uses superseded APLS formulae (C2)
+### F27 — Paediatric weight uses superseded APLS formulae (C2) — ⚠️ WITHDRAWN
+
+> **This finding is retracted. See Addendum B.1.** The app's formulae ARE current
+> APLS and match at every month from 0 to 12 years. The formulae I attributed to
+> APLS here are the Best Guess formulae, a different method. The section below is
+> left in place for the audit trail; do not act on it.
 
 `index.html:2158`. The app implements the **pre-update** APLS formulae for the two
 younger bands. Current APLS uses a dedicated infant formula and the revised 1–5 year
@@ -896,3 +902,139 @@ than omitting them silently.
 - [Comparison of actual to estimated weights in Australian children, using the original and updated APLS, Luscombe and Owens, Best Guess formulae and the Broselow tape — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0300957213008873)
 - [Weight estimation in paediatrics: a comparison of the APLS formula and 'Weight = 3(age)+7' — PubMed](https://pubmed.ncbi.nlm.nih.gov/20659877/)
 - [Wellington ICU Drug Manual — Opioid Dose Equivalence](https://drug.wellingtonicu.com/appendices/appendix6/)
+
+---
+
+# Addendum B — F27 retracted; APLS cross-checked against UK, Australian and US sources
+
+**Added 7 September 2026**, after re-checking the paediatric weight formulae against
+UK APLS, Australian APLS and US practice as requested.
+
+## B.1 F27 is withdrawn — it was wrong
+
+**The application's paediatric weight formulae are correct.** They are the current
+APLS formulae, unchanged since the 2011 revision, and they match at **every month
+from 0 to 12 years** — maximum difference 0.0000 kg.
+
+| Band | App implements | APLS 2011 | |
+|---|---|---|---|
+| 1–12 months | `(months / 2) + 4` | `(0.5 × months) + 4` | identical |
+| 1–5 years | `2 × (age + 4)` | `(2 × age) + 8` | identical (same expression) |
+| 6–12 years | `3 × age + 7` | `(3 × age) + 7` | identical |
+
+**What I got wrong.** In Addendum A I reported that current APLS used
+`(months + 9) / 2` and `2 × (age + 5)`, and raised F27 as a C2 finding on that
+basis. Those are the **Best Guess** formulae (Tinning & Acworth, Australian ED data
+2001–2004) — a *different, competing* age-based method, not an APLS update. The
+search summary I relied on presented the two side by side and I read them as one
+lineage without confirming against a source that named both. The claimed "2 kg low
+across the whole 1–5 year band", and the downstream claim of a **13 % shortfall in
+defibrillation energy and fluid bolus**, were therefore false. Nothing in the
+application needs changing on this account.
+
+This is the failure mode the report's own §A caveat was written to guard against,
+and it got past that guard. Two process changes follow, both applied below:
+
+- A finding is not recorded unless a source is identified that **names the standard
+  it is attributing the value to**. "Formula X is current" from a comparative paper
+  is not sufficient; comparative papers list competing formulae adjacently.
+- Where a value could not be read from the primary document, the finding is
+  recorded as **provisional** and excluded from the fix tiers until confirmed.
+
+**F27 is struck from the findings list.** F28 and F29 (the tramadol and tapentadol
+opioid factors) are unaffected — they came from a source explicitly identified as
+ANZCA PS01(PM) Appendix 2 — but under the rule above they are now marked
+**provisional** pending a read of the primary PDF, which this environment cannot
+fetch.
+
+## B.2 UK vs Australian vs US — the comparison requested
+
+### Age-based weight estimation
+
+| Method | < 1 year | 1–5 years | 6–12 years |
+|---|---|---|---|
+| **APLS 2011** (UK and Australian — same formulae) | `0.5 × months + 4` | `2 × age + 8` | `3 × age + 7` |
+| **Best Guess** (Tinning & Acworth, AU) | `(months + 9) / 2` | `(age + 5) × 2` | `age × 4` *(5–14 y)* |
+| **US / AHA PALS** | — no age-based formula — | | |
+
+**UK and Australian APLS do not differ.** Both teach the same three formulae; the
+6–12 year band is the Luscombe & Owens formula, adopted into APLS at the 2011
+revision. The app is aligned with both.
+
+**Best Guess runs consistently heavier** above one year — 12 kg vs 10 kg at 1 year,
+16 vs 14 at 3 years, 20 vs 18 at 5 years. Several comparative studies report Best
+Guess and Luscombe & Owens outperforming the older APLS formula in developed
+populations, with APLS tending to under-estimate. That is a live argument in the
+literature, not a defect in the app; the app follows the taught standard.
+
+**The US does not use an age-based formula at all.** AHA PALS is built around
+**length-based tape** estimation (Broselow), with age-based formulae used only for
+ETT size. Comparative data favour the tapes: one comparison found the Broselow tape
+had markedly tighter limits of agreement (SD 3.8 kg) than the APLS age rule
+(SD 5.5 kg), and a recent multicentre validation put PAWPER at 89.4 % and Broselow
+at 82.7 % within 20 % of actual weight against **58.8 % for the APLS formula**.
+
+**Implication for the app — a framing issue, not a bug.** Age-based estimation is
+the weakest of the available methods, and the app presents its output as a single
+unqualified number ("APLS estimate"). Worth considering: a note that an age-based
+estimate carries roughly ±20 % error and that actual weight or a length-based tape
+should be preferred whenever either is available. That is a content decision for
+you, not something I would change unasked.
+
+### F20 survives, and is now better characterised
+
+APLS defines no formula for **5–6 years** — the bands are 1–5 and 6–12. The app
+fills the gap by evaluating fractional age against the 6–12 year formula from 5.01
+years onward, which extrapolates the older-child formula downward:
+
+| Age | App | APLS 1–5 y formula | Best Guess |
+|---|---|---|---|
+| 5.0 y | 18.0 kg | 18.0 kg | 20.0 kg |
+| 5.5 y | **23.5 kg** | 19.0 kg | 22.0 kg |
+| 5.9 y | **24.8 kg** | 19.8 kg | 23.7 kg |
+| 6.0 y | 25.0 kg | — | 24.0 kg |
+
+A 5½-year-old is estimated at 23.5 kg where the adjacent APLS band would give 19 kg
+— a **24 % over-estimate**, and over-estimation is the unsafe direction for drug
+dosing. **F20 stands**, now as a genuine over-estimate in a defined age window
+rather than a cosmetic discontinuity. The honest fix is to make the gap visible
+rather than silently interpolate across it.
+
+### ETT sizing — no UK/US divergence, and F5 is confirmed
+
+`age/4 + 4` uncuffed and `age/4 + 3.5` cuffed (Cole's) are common to APLS and PALS;
+the app matches both. The confirmed problems are at the edges of the range, exactly
+as F5 described:
+
+- A **term neonate** takes a **3.0 mm** tube at **9–10 cm** at the lip. The app's
+  formulae return **4.0 mm at 12 cm**. Cole's is not valid below about 1–2 years.
+- Depth constants vary by source — `age/2 + 12` (app) and `age/2 + 13` both appear;
+  `3 × tube size` is a widely used cross-check and would be a useful second line in
+  the output.
+
+**F5 stands, unchanged.**
+
+## B.3 Net effect on the findings list
+
+| | |
+|---|---|
+| **Withdrawn** | F27 |
+| **Confirmed by this round** | F5 (ETT at the extremes), F20 (5–6 y over-estimate, re-characterised), F18 (ANZCOR atropine 3 mg) |
+| **Downgraded to provisional** | F28, F29, and the revised F6/F7 opioid factors — sourced but not read from the primary document |
+| **Unaffected** | F1, F2, F3, F4, F9, F13 and the remainder — code defects that do not depend on any external standard |
+
+**The fix priority is unchanged: F1, F2, F3, F4.** All four are defects in the code's
+own logic, independent of which guideline applies, and none of them moved in either
+addendum.
+
+## B.4 Sources
+
+- [Weight estimation — Don't Forget the Bubbles](https://dontforgetthebubbles.com/weight-estimation/)
+- [APLS weight estimation — don't do it (well, almost never), St Emlyn's](https://www.stemlynsblog.org/apls-estimation-formulas-do-not-safely-predict-weight-in-uk-children-st-emlyns/)
+- [A comparison of actual to estimated weights in Australian children … original and updated APLS, Luscombe and Owens, Best Guess formulae and the Broselow tape — Resuscitation](https://www.resuscitationjournal.com/article/S0300-9572(13)00887-3/fulltext)
+- [Weight estimation in paediatrics: a comparison of the APLS formula and 'Weight = 3(age)+7' — PubMed](https://pubmed.ncbi.nlm.nih.gov/20659877/)
+- [Make your Best Guess: an updated method for paediatric weight estimation in emergencies (Tinning & Acworth)](https://www.researchgate.net/publication/5826170_Make_your_Best_Guess_An_updated_method_for_paediatric_weight_estimation_in_emergencies)
+- [Multicentre validation of paediatric weight estimation methods — length-based, habitus-adjusted and age-based](https://pmc.ncbi.nlm.nih.gov/articles/PMC13536096/)
+- [Pediatric Weight Estimation — Annals of Emergency Medicine](https://www.annemergmed.com/article/S0196-0644(13)00104-2/fulltext)
+- [Endotracheal Tube — StatPearls, NCBI Bookshelf](https://www.ncbi.nlm.nih.gov/books/NBK539747/)
+- [Pediatric intubation — PALS](https://www.tomwademd.net/pediatric-airway-management-pediatric-advanced-life-support-course/)
