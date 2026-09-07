@@ -309,7 +309,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
           <option value="f">Female</option>
         </select>
       </div>
-      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">IBW used</div><div class="ibw-val" id="ibw-used">-</div></div>
+      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note"></div></div>
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetLA()">Reset</button>
     </div>
@@ -366,9 +366,9 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card">
     <div class="slabel">Patient</div>
     <div class="row" style="margin-bottom:12px">
-      <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="calcPdAge()"></div>
-      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" max="11" style="width:70px" oninput="calcPdAge()"></div>
-      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.5" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
+      <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="syncAge('pd')"></div>
+      <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" max="600" style="width:70px" oninput="syncAge('pd')"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.4" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
     </div>
     <div id="pd-wt-summary" style="display:none">
       <div class="ibw-row" style="margin-top:0">
@@ -556,11 +556,11 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div class="field">
         <label>Age (yrs)</label>
-        <input type="number" id="g-yr" placeholder="0" min="0" max="120" style="width:65px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-yr" placeholder="0" min="0" max="120" style="width:65px" oninput="syncAge('g')">
       </div>
       <div class="field">
         <label>Months</label>
-        <input type="number" id="g-mo" placeholder="0" min="0" max="11" style="width:55px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-mo" placeholder="0" min="0" max="1440" style="width:55px" oninput="syncAge('g')">
       </div>
     </div>
     <div id="g-bw-boxes" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
@@ -1027,7 +1027,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#60a5fa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Bolus</div>
             <div style="font-size:12px;color:#bfdbfe;line-height:1.7">
               <strong style="color:#fff">1.5 ml/kg IV</strong> over 1 min<br>
-              (70 kg adult = <strong style="color:#fff">~100 ml</strong>)<br>
+              <span id="last-bolus-calc">(70 kg adult = <strong style="color:#fff">~100 ml</strong>)</span><br>
               Repeat up to <strong>2 more times</strong> at 5 min intervals if no response
             </div>
           </div>
@@ -1035,7 +1035,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#60a5fa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Infusion</div>
             <div style="font-size:12px;color:#bfdbfe;line-height:1.7">
               <strong style="color:#fff">15 ml/kg/hr</strong><br>
-              (70 kg adult = <strong style="color:#fff">~1000 ml/hr</strong>)<br>
+              <span id="last-inf-calc">(70 kg adult = <strong style="color:#fff">~1000 ml/hr</strong>)</span><br>
               Continue until haemodynamically stable<br>
               Max dose: <strong>12 ml/kg</strong>
             </div>
@@ -1100,7 +1100,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
             <div style="font-size:11px;font-weight:600;color:#4ade80;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Initial Dose</div>
             <div style="font-size:12px;color:#d1fae5;line-height:1.7">
               <strong style="color:#fff">2.5 mg/kg IV</strong> rapid bolus<br>
-              (70 kg adult = <strong style="color:#fff">~175 mg = 9 vials</strong>)<br>
+              <span id="mh-dantrolene-calc">(70 kg adult = <strong style="color:#fff">~175 mg = 9 vials</strong>)</span><br>
               Each vial = 20 mg dissolved in 60 ml sterile water
             </div>
           </div>
@@ -1181,7 +1181,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div style="background:#7f1d1d;border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:#fca5a5;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">Treatment if Haemodynamically Compromised</div>
-        <div style="font-size:12px;color:#fee2e2;line-height:1.7"><div style="margin-bottom:3px">Atropine <strong>600 mcg IV</strong> (repeat to max 6 mg) &bull; Glycopyrrolate 200 mcg IV</div><div style="margin-bottom:3px">Ephedrine <strong>9 mg</strong> boluses titrated</div><div style="margin-bottom:3px">Adrenaline infusion: 5 mg in 50 ml saline, infuse 0&ndash;20 ml/hr</div><div style="margin-bottom:3px">Isoprenaline: 1 mg (5 vials) in 50 ml, infuse 0&ndash;60 ml/hr</div><div style="margin-bottom:3px">External pacing if refractory: set rate 60/min, increase mA until capture (usually 65&ndash;100 mA), confirm pulse</div></div>
+        <div style="font-size:12px;color:#fee2e2;line-height:1.7"><div style="margin-bottom:3px">Atropine <strong>600 mcg IV</strong> (repeat every 3&ndash;5 min to a total of 3 mg) &bull; Glycopyrrolate 200 mcg IV</div><div style="margin-bottom:3px">Ephedrine <strong>9 mg</strong> boluses titrated</div><div style="margin-bottom:3px">Adrenaline infusion: 5 mg in 50 ml saline, infuse 0&ndash;20 ml/hr</div><div style="margin-bottom:3px">Isoprenaline: 1 mg (5 vials) in 50 ml, infuse 0&ndash;60 ml/hr</div><div style="margin-bottom:3px">External pacing if refractory: set rate 60/min, increase mA until capture (usually 65&ndash;100 mA), confirm pulse</div></div>
       </div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
         <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">Drug Overdose Management</div>
@@ -1719,8 +1719,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Total oMEDD</div>
       <div id="omedd-total" style="font-size:22px;font-weight:700;color:var(--text)">0 mg/day</div>
       <div id="omedd-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none"></div>
+      <div id="omedd-thn" style="font-size:11px;color:#93c5fd;margin-top:6px;display:none;padding:6px 8px;background:#0f213d;border:1px solid #1e40af;border-radius:4px"></div>
     </div>
-    <div style="margin-top:10px;font-size:10px;color:var(--text3)">Conversion factors: Oral morphine 1 • Oral oxycodone 1.5 • Oral hydromorphone 5 • Oral codeine 0.15 • Oral tramadol 0.1 • IV/SC morphine 3 • IV/SC hydromorphone 15 • IV fentanyl (mcg) × 0.1 • Buprenorphine patch (mcg/hr) × 25 • Fentanyl patch (mcg/hr) × 2.4</div>
+    <div style="margin-top:10px;padding:8px 10px;background:#2d1f0f;border:1px solid #7f5f1d;border-radius:5px;font-size:11px;color:#fcd34d"><strong>Methadone is not included.</strong> ANZCA excludes methadone, transmucosal fentanyl and neuraxial opioids from oMEDD because their pharmacokinetics are complex and variable. If the patient takes any of these, this total understates their exposure &mdash; use the Ripamonti table on the Opioid Conversion tab and seek specialist input.<br>Conversion is a guide only: giving a calculated &lsquo;equivalent&rsquo; dose of a replacement opioid may cause overdose. Reduce by 25&ndash;50% when rotating.</div>
+    <div style="margin-top:10px;font-size:10px;color:var(--text3);line-height:1.7" id="omedd-factors"></div>
   </div>
 
     
@@ -1871,17 +1873,181 @@ function showTab(id, el) {
 =====
    GLOBAL PATIENT CARD
 ======================================= */
-function calcAgeFromDOB() {
-  var dob = document.getElementById('g-dob').value;
-  if (!dob) return;
-  var d = new Date(dob), now = new Date();
-  var yr = now.getFullYear() - d.getFullYear();
-  var mo = now.getMonth() - d.getMonth();
+// Parse a yyyy-mm-dd input as a LOCAL date. new Date('2000-05-15') is parsed as
+// UTC midnight, which renders as the previous day anywhere west of UTC and can
+// shift an age by a day either side of a birthday.
+function parseDateLocal(val) {
+  if (!val) return null;
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+  if (!m) return null;
+  var d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return isNaN(d) ? null : d;
+}
+
+// The old version clamped the day-of-month borrow with Math.max(0, mo - 1),
+// swallowing it instead of decrementing the year - so the day before a birthday
+// read as the full year, which could push a child across the 12-month APLS
+// band. A future date produced a negative age.
+function ageFromDOB(dobDate, nowDate) {
+  if (!dobDate || dobDate > nowDate) return null;
+  var yr = nowDate.getFullYear() - dobDate.getFullYear();
+  var mo = nowDate.getMonth() - dobDate.getMonth();
+  if (nowDate.getDate() < dobDate.getDate()) mo--;
   if (mo < 0) { yr--; mo += 12; }
-  if (now.getDate() < d.getDate()) mo = Math.max(0, mo - 1);
-  document.getElementById('g-yr').value = yr;
-  document.getElementById('g-mo').value = mo;
+  return yr < 0 ? null : { years: yr, months: mo };
+}
+
+function calcAgeFromDOB() {
+  var el  = document.getElementById('g-dob');
+  var dob = parseDateLocal(el.value);
+  var age = dob ? ageFromDOB(dob, new Date()) : null;
+  if (!age) {
+    el.style.borderColor = el.value ? 'var(--red)' : '';
+    el.title = el.value ? 'Date of birth is in the future or not valid' : '';
+    return;
+  }
+  el.style.borderColor = ''; el.title = '';
+  document.getElementById('g-yr').value = age.years;
+  document.getElementById('g-mo').value = age.months;
+  syncAge('g');
+}
+
+/* ---- Numeric input guards ------------------------------------------------
+   The min/max attributes on these fields were decorative: they only bind on
+   form submission or an explicit checkValidity() call, and this page has
+   neither, so every value went straight through parseFloat. A weight of 9000
+   or an age of 400 was accepted and dosed on.
+
+   Clamping happens on 'change' (blur or Enter), never on 'input' - clamping
+   mid-keystroke would rewrite "1" to "10" while someone is typing "15". While
+   typing, an out-of-range value is only flagged. ---------------------------- */
+
+function flagOutOfRange(el) {
+  var v = parseFloat(el.value);
+  var lo = el.min === '' ? null : parseFloat(el.min);
+  var hi = el.max === '' ? null : parseFloat(el.max);
+  var bad = el.value !== '' && (isNaN(v) || (lo !== null && v < lo) || (hi !== null && v > hi));
+  el.style.borderColor = bad ? 'var(--red)' : '';
+  el.title = bad
+    ? 'Out of range' + (lo !== null && hi !== null ? ' (' + lo + '-' + hi + ')' : '')
+    : '';
+  return bad;
+}
+
+function clampInput(el) {
+  if (el.value === '') { flagOutOfRange(el); return; }
+  var v = parseFloat(el.value);
+  var lo = el.min === '' ? null : parseFloat(el.min);
+  var hi = el.max === '' ? null : parseFloat(el.max);
+  if (isNaN(v)) { el.value = ''; }
+  else {
+    if (lo !== null && v < lo) v = lo;
+    if (hi !== null && v > hi) v = hi;
+    if (String(v) !== el.value) el.value = v;
+  }
+  flagOutOfRange(el);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function installInputGuards() {
+  var els = document.querySelectorAll('input[type="number"][min], input[type="number"][max]');
+  Array.prototype.forEach.call(els, function (el) {
+    if (el.dataset.guarded) return;          // idempotent
+    el.dataset.guarded = '1';
+    el.addEventListener('input',  function () { flagOutOfRange(el); });
+    el.addEventListener('change', function () { clampInput(el); });
+  });
+}
+// Called directly rather than on DOMContentLoaded: this script is the last
+// thing in <body>, so every input already exists, and deferring left the
+// fields unguarded for the window between parse and DOMContentLoaded.
+installInputGuards();
+
+/* ---- Age: one source of truth, synced both ways, always normalised -------
+   Either card may be typed into. Whichever is edited, the value is normalised
+   (any months >= 12 roll into years) and written to both, so the home card and
+   the paediatric calculator can never disagree. -------------------------- */
+
+function normaliseAge(yr, mo) {
+  var total = (yr || 0) * 12 + (mo || 0);
+  if (!(total >= 0)) total = 0;
+  return { years: Math.floor(total / 12), months: total % 12, totalMonths: total };
+}
+
+var _ageSyncing = false;
+
+function syncAge(origin) {
+  if (_ageSyncing) return;              // re-entrancy guard
+  _ageSyncing = true;
+  try {
+    var prefix = origin === 'pd' ? 'pd' : 'g';
+    var rawYr = document.getElementById(prefix + '-yr').value;
+    var rawMo = document.getElementById(prefix + '-mo').value;
+    var blank = rawYr.trim() === '' && rawMo.trim() === '';
+    var n = normaliseAge(parseInt(rawYr, 10) || 0, parseInt(rawMo, 10) || 0);
+
+    ['g', 'pd'].forEach(function (p) {
+      var y = document.getElementById(p + '-yr');
+      var m = document.getElementById(p + '-mo');
+      if (!y || !m) return;
+      if (blank) { y.value = ''; m.value = ''; return; }
+      // Only write when the value actually differs, so the caret is not reset
+      // on every keystroke in the field being typed into.
+      if (y.value !== String(n.years))  y.value  = n.years;
+      if (m.value !== String(n.months)) m.value = n.months;
+    });
+  } finally {
+    _ageSyncing = false;
+  }
   globalPatientUpdate();
+  calcPdAge();
+}
+
+/* ---- Body weights: one definition, used by both cards --------------------
+   Devine is defined from 152.4 cm up; below that it returned nonsense (100 cm
+   gave 0-2.6 kg) which was clamped to 0, making ABW 0.4 x TBW. It now declines.
+   ABW had two different implementations: the drugs tab returned IBW when
+   TBW <= IBW, giving an "adjusted" weight LARGER than the patient. ---------- */
+
+const DEVINE_MIN_HEIGHT_CM = 152.4;
+
+function devineIBW(heightCm, sex) {
+  if (!(heightCm >= DEVINE_MIN_HEIGHT_CM)) return null;
+  return (sex === 'm' ? 50 : 45.5) + 2.3 * ((heightCm - 152.4) / 2.54);
+}
+function janmahasatianLBW(wt, heightCm, sex) {
+  const bmi = wt / ((heightCm / 100) * (heightCm / 100));
+  return sex === 'm' ? (9270 * wt) / (6680 + 216 * bmi) : (9270 * wt) / (8780 + 244 * bmi);
+}
+function adjustedBW(wt, heightCm, sex) {
+  const ibw = devineIBW(heightCm, sex);
+  if (ibw == null) return null;
+  return wt > ibw ? ibw + 0.4 * (wt - ibw) : wt;   // never exceeds the patient
+}
+const IBW_TOO_SHORT_NOTE = 'Devine not valid <152 cm';
+
+/* ---- F23: the two most time-critical weight-based doses in the app --------
+   Dantrolene and Intralipid showed a hard-coded 70 kg worked example while the
+   app already knew the patient's weight. They now follow it, and fall back to
+   the 70 kg example when no weight has been entered. --------------------- */
+function updateEmergencyWeightDoses() {
+  var wtEl = document.getElementById('g-wt');
+  var wt = wtEl ? parseFloat(wtEl.value) : NaN;
+  var known = wt > 0;
+  var w = known ? wt : 70;
+  var lead = known ? (Math.round(w * 10) / 10) + ' kg patient = ' : '70 kg adult = ';
+  var b = function (t) { return '<strong style="color:#fff">' + t + '</strong>'; };
+
+  var dan = document.getElementById('mh-dantrolene-calc');
+  if (dan) {
+    var mg = 2.5 * w;
+    dan.innerHTML = '(' + lead + b('~' + Math.round(mg) + ' mg = ' + Math.ceil(mg / 20) + ' vials') + ')';
+  }
+  var lb = document.getElementById('last-bolus-calc');
+  if (lb) lb.innerHTML = '(' + lead + b('~' + Math.round(1.5 * w) + ' ml') + ')';
+  var li = document.getElementById('last-inf-calc');
+  if (li) li.innerHTML = '(' + lead + b('~' + Math.round(15 * w) + ' ml/hr') +
+                          ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
 }
 
 function globalPatientUpdate() {
@@ -1896,14 +2062,18 @@ function globalPatientUpdate() {
   var laHt=document.getElementById('la-ht'); if(laHt&&ht) laHt.value=ht;
   var laWt=document.getElementById('la-wt'); if(laWt&&wt) laWt.value=wt;
   var ddHt=document.getElementById('dd-ht'); if(ddHt&&ht) ddHt.value=ht;
-  var pdYr=document.getElementById('pd-yr'); if(pdYr) pdYr.value=yr;
-  var pdMo=document.getElementById('pd-mo'); if(pdMo) pdMo.value=mo;
+  // Age is NOT propagated from here. It used to be, unconditionally, so any
+  // change to weight/height/sex wrote parseInt('')||0 into the paediatric age
+  // fields and silently wiped an age the user had already entered. Age is now
+  // owned by syncAge(), which keeps both cards in step in both directions.
   var laSex=document.getElementById('la-sex'); if(laSex&&sex) laSex.value=sex;
 
   // Trigger calcs in other tabs
   if(wt) filterDrugs();
   calcPdAge(); calcPaed();
   if(ht||wt) { try{ calcIBW(); }catch(e){} }
+
+  updateEmergencyWeightDoses();
 
   // Body weight boxes
   var boxes = document.getElementById('g-bw-boxes');
@@ -1915,51 +2085,35 @@ function globalPatientUpdate() {
   // TBW
   document.getElementById('g-tbw').textContent = rnd(wt) + ' kg';
 
-  // IBW (Devine) — needs height
+  // IBW (Devine) — needs height, and only above 152.4 cm
   var ibwEl = document.getElementById('g-ibw');
   var ibwNote = document.getElementById('g-ibw-note');
   if (ht) {
-    var htIn = (ht - 152.4) / 2.54;
-    var ibwM = Math.max(0, rnd(50 + 2.3 * htIn));
-    var ibwF = Math.max(0, rnd(45.5 + 2.3 * htIn));
-    var ibwVal = sex==='m' ? ibwM : sex==='f' ? ibwF : null;
-    if (ibwVal !== null) {
-      ibwEl.textContent = ibwVal + ' kg';
-      ibwNote.textContent = (sex==='m'?'Male':'Female') + ' · Devine';
-    } else {
-      ibwEl.textContent = ibwM + '/' + ibwF + ' kg';
-      ibwNote.textContent = 'M/F · Devine';
-    }
-    // IBW numeric for ABW calc
-    var ibwNum = sex==='m' ? Math.max(0,50+2.3*htIn) : sex==='f' ? Math.max(0,45.5+2.3*htIn) : Math.max(0,(50+45.5)/2+2.3*htIn);
+    var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
+    var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
+    var abwM = adjustedBW(wt, ht, 'm'),  abwF = adjustedBW(wt, ht, 'f');
+    var lbwEl  = document.getElementById('g-lbw'),  lbwNote = document.getElementById('g-lbw-note');
+    var abwEl  = document.getElementById('g-abw'),  abwNote = document.getElementById('g-abw-note');
 
-    // LBW (Janmahasatian)
-    var bmi = wt / ((ht/100)*(ht/100));
-    var lbwM = rnd((9270*wt)/(6680+216*bmi));
-    var lbwF = rnd((9270*wt)/(8780+244*bmi));
-    var lbwEl = document.getElementById('g-lbw');
-    var lbwNote = document.getElementById('g-lbw-note');
-    if (sex==='m') { lbwEl.textContent=lbwM+' kg'; lbwNote.textContent='Male · Janmahasatian'; }
-    else if (sex==='f') { lbwEl.textContent=lbwF+' kg'; lbwNote.textContent='Female · Janmahasatian'; }
-    else { lbwEl.textContent=lbwM+'/'+lbwF+' kg'; lbwNote.textContent='M/F · Janmahasatian'; }
-
-    // ABW
-    var abwEl = document.getElementById('g-abw');
-    var abwNote = document.getElementById('g-abw-note');
-    var ibwMnum = Math.max(0, 50 + 2.3 * htIn);
-    var ibwFnum = Math.max(0, 45.5 + 2.3 * htIn);
-    var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4*(wt-ibwMnum)) : rnd(wt);
-    var abwF = wt > ibwFnum ? rnd(ibwFnum + 0.4*(wt-ibwFnum)) : rnd(wt);
-    if (sex === 'm') {
-      abwEl.textContent = abwM + ' kg';
-      abwNote.textContent = wt > ibwMnum ? 'Male' : 'TBW ≤ IBW';
-    } else if (sex === 'f') {
-      abwEl.textContent = abwF + ' kg';
-      abwNote.textContent = wt > ibwFnum ? 'Female' : 'TBW ≤ IBW';
-    } else {
-      abwEl.textContent = abwM + '/' + abwF + ' kg';
-      abwNote.textContent = 'M/F';
+    function pair(m, f, unit) {
+      if (m == null || f == null) return '—';
+      return sex === 'm' ? rnd(m) + unit : sex === 'f' ? rnd(f) + unit : rnd(m) + '/' + rnd(f) + unit;
     }
+    function who(base) {
+      return sex === 'm' ? 'Male · ' + base : sex === 'f' ? 'Female · ' + base : 'M/F · ' + base;
+    }
+
+    if (ibwM == null) {
+      ibwEl.textContent = '—';  ibwNote.textContent = IBW_TOO_SHORT_NOTE;
+      abwEl.textContent = '—';  abwNote.textContent = IBW_TOO_SHORT_NOTE;
+    } else {
+      ibwEl.textContent = pair(ibwM, ibwF, ' kg');  ibwNote.textContent = who('Devine');
+      abwEl.textContent = pair(abwM, abwF, ' kg');
+      var usedIbw = sex === 'm' ? ibwM : sex === 'f' ? ibwF : Math.min(ibwM, ibwF);
+      abwNote.textContent = wt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
+    }
+    // LBW is valid at any height
+    lbwEl.textContent = pair(lbwM, lbwF, ' kg');  lbwNote.textContent = who('Janmahasatian');
   } else {
     // No height — can only show TBW
     ['g-ibw','g-lbw','g-abw'].forEach(function(id){ document.getElementById(id).textContent='—'; });
@@ -1997,17 +2151,34 @@ function fmtN(n) {
   return n >= 100 ? Math.round(n).toString() : n >= 10 ? n.toFixed(1) : n.toFixed(2);
 }
 
+// Weight used for LA maximum doses: min(IBW, actual). IBW alone is the right
+// conservative choice in obesity, but for a patient lighter than their ideal
+// weight it RAISED the ceiling - 36-41% above the true limit. Devine is also no
+// longer evaluated below its valid range (152.4 cm), where it produced nonsense
+// (a 100 cm child gave an IBW of 2.5 kg). DEVINE_MIN_HEIGHT_CM is declared with
+// the shared body-weight helpers above.
+
 function getIBW() {
   const ht  = parseFloat(document.getElementById('la-ht').value)    || null;
   const wt  = parseFloat(document.getElementById('la-wt').value)    || null;
   const sex = document.getElementById('la-sex').value;
-  let calc = null;
-  if (ht && sex) {
-    calc = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (ht - 152.4)) * 10) / 10;
-    if (calc < 1) calc = null;
+  let ibw = null;
+  if (ht && sex && ht >= DEVINE_MIN_HEIGHT_CM) {
+    ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (ht - 152.4)) * 10) / 10;
+    if (ibw < 1) ibw = null;
   }
-  const used = calc ?? wt;
-  document.getElementById('ibw-used').textContent = used != null ? used + ' kg' : '-';
+  const used = (ibw != null && wt) ? Math.min(ibw, wt) : (wt || ibw || null);
+  const el = document.getElementById('ibw-used');
+  el.textContent = used != null ? used + ' kg' : '-';
+  const note = document.getElementById('ibw-used-note');
+  if (note) {
+    note.textContent = used == null ? ''
+      : (ibw != null && wt && ibw < wt) ? 'IBW (lower than actual)'
+      : (ibw != null && wt) ? 'Actual (lower than IBW)'
+      : (ibw != null) ? 'IBW'
+      : ht && ht < DEVINE_MIN_HEIGHT_CM ? 'Actual - IBW not valid under 152 cm'
+      : 'Actual weight';
+  }
   return used;
 }
 
@@ -2155,19 +2326,31 @@ function resetLA() {
 ======================================= */
 let pdCatKey  = null;
 
+// APLS 2011. Defined only from 3 months to 12 years - the function returns null
+// outside that range rather than extrapolating. Previously the final branch ran
+// for any age, so 40 y returned 127 kg and every paediatric dose was computed
+// on it while the label read 'adult'.
+const APLS_MAX_MONTHS = 144; // 12 years
+
 function aplsWeight(totalMonths) {
   const yr = totalMonths / 12;
-  if (totalMonths < 3)  return null;
-  if (totalMonths < 12) return Math.round((totalMonths / 2 + 4) * 10) / 10;
-  if (yr <= 5)          return Math.round((2 * (yr + 4)) * 10) / 10;
-  return Math.round((3 * yr + 7) * 10) / 10; // covers all ages
+  if (!(totalMonths >= 0))           return null; // negative age
+  if (totalMonths < 3)               return null; // below the validated range
+  if (totalMonths > APLS_MAX_MONTHS) return null; // APLS stops at 12 years
+  // Banded on COMPLETED years. APLS defines 1-5 and 6-12 with nothing between,
+  // and selecting on `yr <= 5` sent every child from 5.01 years to the 6-12
+  // formula - a 5.5-year-old was estimated at 23.5 kg where the 1-5 band gives
+  // 19. Fractional age is still used within a band, so the curve stays smooth.
+  if (totalMonths < 12)    return Math.round((totalMonths / 2 + 4) * 10) / 10;
+  if (Math.floor(yr) <= 5) return Math.round((2 * (yr + 4)) * 10) / 10;
+  return Math.round((3 * yr + 7) * 10) / 10;
 }
 function aplsFormula(totalMonths) {
   const yr = totalMonths / 12;
-  if (totalMonths < 12) return '(age_mo / 2) + 4';
-  if (yr <= 5)          return '2 x (age + 4)';
-  if (yr <= 12)         return '3 x age + 7';
-  return 'adult';
+  if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
+  if (totalMonths < 12)    return '(age_mo / 2) + 4';
+  if (Math.floor(yr) <= 5) return '2 x (age + 4)';
+  return '3 x age + 7';
 }
 
 function calcPdAge() {
@@ -2185,15 +2368,22 @@ function calcPdAge() {
   summary.style.display = 'block';
 
   const apls = aplsWeight(totalMonths);
+  var shown = normaliseAge(yr, mo);
   document.getElementById('pd-age-display').textContent =
-    totalMonths > 0 ? (yr > 0 ? yr + 'y ' : '') + mo + 'm' : '-';
+    totalMonths > 0
+      ? (shown.years > 0 ? shown.years + 'y ' + shown.months + 'm' : shown.months + 'm')
+      : '-';
   document.getElementById('pd-apls-wt').textContent     = apls != null ? apls + ' kg' : 'N/A';
   document.getElementById('pd-apls-formula').textContent = totalMonths > 0 ? aplsFormula(totalMonths) : '';
 
   const wtUsed = actualWt ?? apls;
   document.getElementById('pd-wt-used').textContent       = wtUsed != null ? fmtN(wtUsed) + ' kg' : '-';
   document.getElementById('pd-wt-source-note').textContent =
-    actualWt ? 'Actual weight entered' : (apls ? 'APLS estimate' : 'Enter weight or age');
+    actualWt ? 'Actual weight entered'
+             : apls ? 'APLS estimate'
+             : totalMonths > APLS_MAX_MONTHS ? 'Age over 12 years - enter actual weight'
+             : totalMonths > 0 ? 'Under 3 months - enter actual weight'
+             : 'Enter weight or age';
 
   calcPaed();
 }
@@ -2213,11 +2403,11 @@ const PD_CATS = {
     { n: 'Clonidine',                doseStr: '4',    unit: 'mcg/kg', route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 150, note: 'Max 150 mcg' },
     { n: 'Dexmedetomidine',          doseStr: '4',    unit: 'mcg/kg', route: 'in',   concs: [{ c: 'intranasal', mgml: null }], note: '' },
     { n: 'Ketamine',                 doseStr: '5',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 500, note: 'Max 500 mg' },
-    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], note: 'Max 15 mg' },
+    { n: 'Midazolam',                doseStr: '0.5',  unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 15, note: 'Max 15 mg' },
   ],
   'Induction': [
     { n: 'Fentanyl',                 doseStr: '2',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], maxDose: 200, note: 'Max 200 mcg' },
-    { n: 'Ketamine (IM)',            doseStr: '5',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
+    { n: 'Ketamine (IM)',            doseStr: '5',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '100 mg/mL', mgml: 100 }, { c: '50 mg/mL', mgml: 50 }], note: 'Use a concentrated preparation for IM - at 10 mg/mL this dose is an impractical volume' },
     { n: 'Ketamine (IV)',            doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Propofol',                 doseStr: '3',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
   ],
@@ -2226,22 +2416,22 @@ const PD_CATS = {
     { n: 'Rocuronium',               doseStr: '0.6',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Rocuronium (RSI)',         doseStr: '1.2',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '' },
     { n: 'Suxamethonium (IM)',       doseStr: '4',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'If no IV access' },
-    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 150 mg' },
+    { n: 'Suxamethonium (IV)',       doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], maxDose: 150, note: 'Max 150 mg' },
     { n: 'Vecuronium',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL',  mgml: 1  }], note: '' },
   ],
   'Reversal': [
-    { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], note: 'Min 0.1 mg; max 0.5 mg' },
-    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], note: 'Max 0.4 mg' },
-    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], note: 'Max 5 mg; with glycopyrrolate' },
-    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Deep: 16 mg/kg; moderate: 4 mg/kg' },
+    { n: 'Atropine',                 doseStr: '20',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.6 mg/mL',  mgml: 600  }], maxDose: 500, note: 'Min 0.1 mg; max 0.5 mg' },
+    { n: 'Glycopyrrolate',           doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '0.2 mg/mL',  mgml: 200  }], maxDose: 400, note: 'Max 0.4 mg' },
+    { n: 'Neostigmine',              doseStr: '50',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '2.5 mg/mL',  mgml: 2500 }], maxDose: 5000, note: 'Max 5 mg; with glycopyrrolate' },
+    { n: 'Sugammadex',               doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '100 mg/mL', mgml: 100 }], note: 'Moderate (T2 present) 2 mg/kg; deep (PTC 1-2) 4 mg/kg; immediate rescue 16 mg/kg' },
   ],
   'Analgesia (IV)': [
     { n: 'Fentanyl',                 doseStr: '1',    unit: 'mcg/kg', route: 'iv',   concs: [{ c: '10 mcg/mL', mgml: 10 }], note: '' },
     { n: 'Ketamine',                 doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: 'Sub-dissociative' },
-    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], note: 'Max 15 mg; >6 months' },
+    { n: 'Ketorolac',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '15 mg/mL', mgml: 15 }], maxDose: 15, note: 'Max 15 mg; >6 months' },
     { n: 'Morphine',                 doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1 mg/mL', mgml: 1 }], maxDose: 10, note: 'Max 10 mg' },
     { n: 'Paracetamol',              doseStr: 'wt',   unit: 'mg/kg',  route: 'iv',   concs: [{ c: '10 mg/mL', mgml: 10 }], note: '<5 kg: 7.5 mg/kg . 5-10 kg: 10 mg/kg . >10 kg: 15 mg/kg . max 1000 mg', paracetamolIV: true },
-    { n: 'Parecoxib',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: 'IV', mgml: null }], note: 'Max 40 mg; >6 months only' },
+    { n: 'Parecoxib',               doseStr: '0.5',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: 'IV', mgml: null }], maxDose: 40, note: 'Max 40 mg; >6 months only' },
   ],
   'Analgesia (oral)': [
     { n: 'Ibuprofen',               doseStr: '10',   unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 400, note: 'Max 400 mg' },
@@ -2251,16 +2441,16 @@ const PD_CATS = {
     { n: 'Tramadol',                doseStr: '1',    unit: 'mg/kg',  route: 'oral', concs: [{ c: 'oral', mgml: null }], maxDose: 100, note: 'Max 100 mg' },
   ],
   'Antiemetics': [
-    { n: 'Cyclizine',               doseStr: '1',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Max 50 mg; >6 yr; slow IV' },
-    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], note: 'Max 8 mg' },
-    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], note: 'Max 4 mg; >1 month' },
+    { n: 'Cyclizine',               doseStr: '1',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], maxDose: 50, note: 'Max 50 mg; >6 yr; slow IV' },
+    { n: 'Dexamethasone',           doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '4 mg/mL',  mgml: 4  }], maxDose: 8, note: 'Max 8 mg' },
+    { n: 'Ondansetron',             doseStr: '0.15', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '2 mg/mL',  mgml: 2  }], maxDose: 4, note: 'Max 4 mg; >1 month' },
   ],
   'Emergency': [
-    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: 'Rapid IV; max 6 mg 1st dose' },
-    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }, { c: '1:1000 (1 mg/mL)', mgml: 1 }], note: 'Anaphylaxis: 0.01 mg/kg IM. Max 0.5 mg' },
-    { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], note: 'IV/IO. Max 1 mg' },
+    { n: 'Adenosine',               doseStr: '0.1',  unit: 'mg/kg',  route: 'iv',   concs: [{ c: '3 mg/mL',   mgml: 3   }], maxDose: 6, note: 'Rapid IV; max 6 mg 1st dose' },
+    { n: 'Adrenaline',              doseStr: '0.01', unit: 'mg/kg',  route: 'im',   concs: [{ c: '1:1000 (1 mg/mL)', mgml: 1 }, { c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], maxDose: 0.5, note: 'Anaphylaxis: 0.01 mg/kg IM, max 0.5 mg. Use 1:1000 for the IM route' },
+    { n: 'Adrenaline (arrest)',     doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '1:10000 (0.1 mg/mL)', mgml: 0.1 }], maxDose: 1, note: 'IV/IO. Max 1 mg' },
     { n: 'Amiodarone',              doseStr: '5',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], maxDose: 300, note: 'Pulseless VT/VF. Max 300 mg' },
-    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 0.6  }], note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
+    { n: 'Atropine',                doseStr: '0.02', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.6 mg/mL',   mgml: 0.6  }], maxDose: 0.5, note: 'Bradycardia. Min 0.1 mg, max 0.5 mg' },
     { n: 'Ephedrine',               doseStr: '0.25', unit: 'mg/kg',  route: 'im',   concs: [{ c: '3 mg/mL',   mgml: 3   }], note: '' },
     { n: 'Hydrocortisone',          doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: 'Anaphylaxis, adrenal crisis' },
     { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.5 mg/mL',  mgml: 0.5 }], note: 'Titrate to effect' },
@@ -2269,14 +2459,27 @@ const PD_CATS = {
   'Fluids': [
     { n: 'Albumin 4%',              doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '4%', mgml: null }], note: 'Colloid resuscitation' },
     { n: 'Fluid bolus',             doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '0.9% NaCl / Plasmalyte', mgml: null }], note: 'Sepsis: up to 60 mL/kg. Reassess after each bolus' },
-    { n: 'Maintenance',             doseStr: '4-2-1',unit: '',       route: 'iv',   concs: [{ c: '-', mgml: null }], note: '4 mL/kg/hr for first 10 kg + 2 for next 10 + 1 thereafter' },
+    { n: 'Maintenance',             doseStr: '4-2-1',unit: 'mL/hr',  route: 'iv',   concs: [{ c: '-', mgml: null }], note: 'Holliday-Segar: 4 mL/kg/hr for the first 10 kg + 2 for the next 10 + 1 thereafter' },
     { n: 'pRBC',                    doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: 'pRBC', mgml: null }], note: 'Raises Hb ~10 g/L per 5 mL/kg' },
   ],
 };
 
 
+// Holliday-Segar: 4 mL/kg/hr for the first 10 kg, 2 for the next 10, 1 beyond.
+// The '4-2-1' row previously fell through parseDoseRange (which guarded the
+// string '4/2/1', not '4-2-1') and produced a flat 4 mL/kg/hr - 180 mL/hr for a
+// 45 kg child instead of 85, rendered with no unit.
+const MAINTENANCE_KEY = '4-2-1';
+
+function maintenanceFluid(wt) {
+  if (!wt || wt <= 0) return null;
+  if (wt <= 10) return 4 * wt;
+  if (wt <= 20) return 40 + 2 * (wt - 10);
+  return 60 + (wt - 20);
+}
+
 function parseDoseRange(str) {
-  if (!str || str === '4/2/1') return null;
+  if (!str || str === MAINTENANCE_KEY) return null;
   const p = str.split('-');
   if (p.length === 2) return { lo: parseFloat(p[0]), hi: parseFloat(p[1]) };
   const v = parseFloat(p[0]);
@@ -2284,6 +2487,10 @@ function parseDoseRange(str) {
 }
 function calcDose(str, wt) {
   if (!wt) return null;
+  if (str === MAINTENANCE_KEY) {
+    const m = maintenanceFluid(wt);
+    return m == null ? null : { lo: m, hi: m };
+  }
   const r = parseDoseRange(str);
   if (!r) return null;
   return { lo: r.lo * wt, hi: r.hi * wt };
@@ -2347,16 +2554,78 @@ function roundHalfUp(x) {
   return Math.ceil(x * 2) / 2;
 }
 
-function renderAirway(wt, out) {
-  var yr = parseFloat(document.getElementById('pd-yr').value) || 0;
-  var mo = parseFloat(document.getElementById('pd-mo').value) || 0;
-  var age = yr + mo / 12;
-  if (!age && wt) age = Math.max(0, wt / 2 - 4);
+// CLINICAL VALUES - confirm against your institution's own guideline.
+// Cole's formulae (age/4 + 4 uncuffed, age/4 + 3.5 cuffed, age/2 + 12 at the
+// lip) hold from roughly 1 year. Below that they oversize badly: a term neonate
+// came out at 4.0 mm sited 12 cm at the lip, where 3.0-3.5 mm at 9-10 cm is
+// correct - an oversized tube risks subglottic injury and 12 cm is frankly
+// endobronchial. Under 1 year is therefore a weight-banded lookup, with depth
+// taken as weight + 6 cm.
+const INFANT_ETT = [
+  { maxWt: 1,        uncuffed: 2.5, cuffed: null, label: '<1 kg' },
+  { maxWt: 2,        uncuffed: 3.0, cuffed: null, label: '1-2 kg' },
+  { maxWt: 3,        uncuffed: 3.0, cuffed: 3.0,  label: '2-3 kg' },
+  { maxWt: Infinity, uncuffed: 3.5, cuffed: 3.0,  label: '>3 kg (term)' }
+];
+const COLE_MIN_AGE_YEARS   = 1;
+const AIRWAY_MAX_AGE_YEARS = 12;
 
-  var ettUC  = roundHalfUp(age / 4 + 4);
-  var ettC   = roundHalfUp(age / 4 + 3.5);
-  var ettLip  = roundHalfUp(age / 2 + 12);
-  var ettNose = roundHalfUp(age / 2 + 15);
+// Age inferred from weight when only a weight is known. The old version
+// inverted the INFANT formula but read the result as YEARS, so a 30 kg child
+// came out as 11 years and was offered a 7.0 mm tube instead of ~6.0 mm. Each
+// APLS band is now inverted on its own terms, and weights outside them are
+// refused rather than guessed.
+function airwayAgeFromWeight(wt) {
+  if (!(wt > 0) || wt < 4) return null;
+  if (wt <= 10) return (2 * (wt - 4)) / 12;
+  if (wt <= 18) return (wt - 8) / 2;
+  if (wt <= 43) return (wt - 7) / 3;
+  return null;
+}
+
+function renderAirway(wt, out) {
+  // "Known" means the field was filled in, not that the value is above zero -
+  // a neonate is legitimately 0y 0m, and treating that as "no age given" sent
+  // term babies down the estimate-age-from-weight path.
+  var yrRaw = (document.getElementById('pd-yr').value || '').trim();
+  var moRaw = (document.getElementById('pd-mo').value || '').trim();
+  var yr = parseFloat(yrRaw) || 0;
+  var mo = parseFloat(moRaw) || 0;
+  var age = yr + mo / 12;
+  var ageKnown = (yrRaw !== '' || moRaw !== '');
+  if (!ageKnown) {
+    age = airwayAgeFromWeight(wt);
+    if (age === null) {
+      out.innerHTML = '<div class="empty">Enter an age - this weight is outside the range over which age can be estimated.</div>';
+      return;
+    }
+  }
+
+  if (age > AIRWAY_MAX_AGE_YEARS) {
+    out.innerHTML = '<div class="empty">Age is over 12 years - use adult airway sizing.</div>';
+    return;
+  }
+
+  var infant = age < COLE_MIN_AGE_YEARS;
+  var ettUC, ettC, ettLip, ettNose, band = null;
+
+  if (infant) {
+    if (!(wt > 0)) {
+      out.innerHTML = '<div class="empty">Under 1 year, tube size is chosen by weight - enter a weight.</div>';
+      return;
+    }
+    var b = INFANT_ETT.find(function (x) { return wt <= x.maxWt; });
+    band    = b.label;
+    ettUC   = b.uncuffed;
+    ettC    = b.cuffed;
+    ettLip  = Math.round((wt + 6) * 2) / 2;
+    ettNose = ettLip + 2;
+  } else {
+    ettUC   = roundHalfUp(age / 4 + 4);
+    ettC    = roundHalfUp(age / 4 + 3.5);
+    ettLip  = roundHalfUp(age / 2 + 12);
+    ettNose = roundHalfUp(age / 2 + 15);
+  }
 
   var lma, lmaMax;
   if      (wt < 5)  { lma = '1';   lmaMax = '4 ml'; }
@@ -2369,8 +2638,8 @@ function renderAirway(wt, out) {
 
   var guedel = age < 0.5 ? '00' : age < 1 ? '0' : age < 2 ? '1' : age < 5 ? '2' : age < 10 ? '3' : '3-4';
   var mask   = wt < 5 ? '0 (neonatal)' : wt < 10 ? '1 (infant)' : wt < 20 ? '2 (small child)' : wt < 30 ? '3 (child)' : '4 (small adult)';
-  var blade  = age < 0.5 ? 'Miller 0' : age < 1 ? 'Miller 1' : age < 2 ? 'Miller 1-2' : age < 5 ? 'Mac 1 / Miller 2' : age < 10 ? 'Mac 2 (MacGrath 2)' : age < 14 ? 'Mac 3 (MacGrath 3)' : 'Mac 3-4 (MacGrath 3)';
-  var cuffNote = age < 2 ? 'Uncuffed preferred <2yr' : age < 8 ? 'Cuffed acceptable; cuff pressure ≤20 cmH₂O' : 'Cuffed ETT';
+  var blade  = age < 0.5 ? 'Miller 0' : age < 1 ? 'Miller 1' : age < 2 ? 'Miller 1-2' : age < 5 ? 'Mac 1 / Miller 2' : age < 10 ? 'Mac 2 (MacGrath 2)' : 'Mac 3 (MacGrath 3)';
+  var cuffNote = age < 2 ? 'Uncuffed preferred <2yr' : age < 8 ? 'Cuffed acceptable; cuff pressure \u226420 cmH\u2082O' : 'Cuffed ETT';
 
   function row(label, val, note) {
     return '<tr class="grp-only"><td style="vertical-align:middle;border-right:1px solid var(--bg4)">' +
@@ -2379,25 +2648,43 @@ function renderAirway(wt, out) {
       '</td><td class="dval" colspan="4" style="font-size:15px;font-weight:600;color:var(--text)">' + val + '</td></tr>';
   }
 
+  var basis = ageKnown
+    ? (infant ? 'Sized by weight (' + band + ') - Cole\u2019s formulae are not valid under 1 year'
+              : 'Sized by age (' + (Math.round(age * 10) / 10) + ' y)')
+    : 'Age estimated from weight as ~' + (Math.round(age * 10) / 10) + ' y - enter an actual age if known';
+
   out.innerHTML = '<div style="overflow-x:auto"><table class="dtable">' +
     '<thead><tr><th style="width:40%">Equipment</th><th colspan="4">Size</th></tr></thead><tbody>' +
     row('ETT uncuffed', ettUC + ' mm', cuffNote) +
-    row('ETT cuffed',   ettC  + ' mm', cuffNote) +
-    row('ETT length — lip',  ettLip  + ' cm') +
-    row('ETT length — nose', ettNose + ' cm') +
+    row('ETT cuffed',   (ettC == null ? 'not used at this weight' : ettC + ' mm'), cuffNote) +
+    row('ETT length \u2014 lip',  ettLip  + ' cm', infant ? 'weight + 6 cm' : '') +
+    row('ETT length \u2014 nose', ettNose + ' cm') +
     row('LMA', 'Size ' + lma + ' (max ' + lmaMax + ')') +
     row('Guedel airway', 'Size ' + guedel) +
     row('Face mask', mask) +
     row('Laryngoscope blade', blade) +
     '</tbody></table>' +
-    '<div style="margin-top:8px;font-size:11px;color:var(--text3)">' +
-    'ETT = age/4 + 4 (uncuffed), age/4 + 3.5 (cuffed), rounded up to nearest 0.5mm</div></div>';
+    '<div style="margin-top:8px;font-size:11px;color:var(--text3)">' + basis + '</div>' +
+    '<div style="margin-top:4px;font-size:11px;color:var(--text3)">' +
+    (infant ? 'Under 1 year: weight-banded tube size, depth = weight + 6 cm.'
+            : 'ETT = age/4 + 4 (uncuffed), age/4 + 3.5 (cuffed), rounded up to the nearest 0.5 mm. Depth = age/2 + 12 cm at the lip.') +
+    ' Always confirm placement clinically.</div></div>';
 }
 
 function calcPaed() {
   const wt  = getPdWt();
   const out = document.getElementById('pd-out');
-  if (!wt) { out.innerHTML = '<div class="empty">Enter patient age or weight to view doses</div>'; return; }
+  if (!wt) {
+    const tm = (parseInt(document.getElementById('pd-yr').value) || 0) * 12 +
+               (parseInt(document.getElementById('pd-mo').value) || 0);
+    const why = tm > APLS_MAX_MONTHS
+      ? 'Age is over 12 years - APLS weight estimation does not apply. Enter an actual weight.'
+      : tm > 0 && tm < 3
+        ? 'Under 3 months - APLS weight estimation does not apply. Enter an actual weight.'
+        : 'Enter patient age or weight to view doses';
+    out.innerHTML = '<div class="empty">' + why + '</div>';
+    return;
+  }
   if (pdCatKey === 'Airway') { renderAirway(wt, out); return; }
   const drugs = PD_CATS[pdCatKey];
   let rows = '';
@@ -2408,6 +2695,9 @@ function calcPaed() {
       const raw = dosePerKg * wt;
       const capped = Math.min(raw, 1000);
       dose = { lo: capped, hi: capped };
+    } else if (drug.doseStr === MAINTENANCE_KEY) {
+      const r = maintenanceFluid(wt);
+      dose = r == null ? null : { lo: Math.round(r), hi: Math.round(r) };
     } else {
       const rawDose = calcDose(drug.doseStr, wt);
       if (rawDose && drug.maxDose != null) {
@@ -2417,7 +2707,10 @@ function calcPaed() {
       }
     }
     const isCapped = dose && drug.maxDose != null && dose.hi >= drug.maxDose;
-    const doseStr  = fmtDosePair(dose, drug.unit) + (isCapped ? '*' : '');
+    // A maintenance rate is prescribed as whole mL/hr, not to one decimal.
+    const doseStr  = (drug.doseStr === MAINTENANCE_KEY && dose)
+      ? Math.round(dose.lo) + ' mL/hr'
+      : fmtDosePair(dose, drug.unit) + (isCapped ? '*' : '');
     const isOral  = drug.route === 'oral' || drug.route === 'in';
     const multi   = drug.concs.length > 1;
     drug.concs.forEach((cv, ci) => {
@@ -2443,7 +2736,7 @@ function calcPaed() {
           ${drug.note ? `<div class="dnote">${drug.note}</div>` : ''}
         </td>
         <td rowspan="${drug.concs.length}" style="vertical-align:middle;text-align:right;border-right:1px solid var(--bg4)">
-          <span style="color:var(--text2);font-size:12px">${drug.paracetamolIV ? (wt<5?'7.5':wt<=10?'10':'15') : drug.doseStr} ${drug.unit}</span>
+          <span style="color:var(--text2);font-size:12px">${drug.paracetamolIV ? (wt<5?'7.5':wt<=10?'10':'15') + ' ' + drug.unit : drug.doseStr === MAINTENANCE_KEY ? '4-2-1 rule' : drug.doseStr + ' ' + drug.unit}</span>
         </td>
         <td rowspan="${drug.concs.length}" class="dval" style="vertical-align:middle;border-right:1px solid var(--bg4)">${doseStr}</td>`;
       }
@@ -2653,7 +2946,7 @@ const DRUG_CATS = {
     { name:'Adrenaline',             conc:'40 mcg/mL',    bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:0.01, infHi:1,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Dobutamine',             conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:2.5,  infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
     { name:'Dopamine',               conc:'4 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:1,    infHi:10,   infUnit:'mcg/kg/min',    notes:'' },
-    { name:'Ephedrine',              conc:'6 mg/mL',      bolusLo:0.25, bolusHi:0.25, bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'' },
+    { name:'Ephedrine',              conc:'6 mg/mL',      bolusLo:3,    bolusHi:9,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'3-9 mg boluses titrated to effect. Tachyphylaxis with repeated doses' },
     { name:'Isoprenaline',           conc:'2 mcg/mL',     bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.5,  infUnit:'mcg/kg/min',    notes:'' },
     { name:'Levosimendan',           conc:'2.5 mg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:0.2,  infUnit:'mcg/kg/min',    notes:'Cardiogenic shock. Load 6-12 mcg/kg over 10 min (optional). Run for 24 hr' },
     { name:'Metaraminol',            conc:'0.5 mg/mL',    bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:0.5,  infHi:2,    infUnit:'mcg/kg/min',    notes:'' },
@@ -2665,20 +2958,20 @@ const DRUG_CATS = {
   'Antihypertensives & rate control': [
     { name:'Clonidine',              conc:'',             bolusLo:0.5,  bolusHi:1,    bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'' },
     { name:'Digoxin',                conc:'50 mcg/mL',    bolusLo:8,    bolusHi:12,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Rate control in AF. Loading dose in divided doses. Renal dose adjustment' },
-    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:2,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'' },
+    { name:'Esmolol',                conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:1,    bolusUnit:'mg/kg',      infLo:50,   infHi:200,  infUnit:'mcg/kg/min',    notes:'Load 0.5-1 mg/kg over 1 min, then infuse. Intraoperatively often titrated as 10-20 mg boluses instead' },
     { name:'GTN',                    conc:'100 mcg/mL',   bolusLo:0.5,  bolusHi:2,    bolusUnit:'mcg/kg',     infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Hydralazine',            conc:'',             bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Acute hypertension, obstetrics. Give slowly; onset 10-20 min' },
     { name:'Labetalol',              conc:'1 mg/mL',      bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:5,    infHi:50,   infUnit:'mcg/kg/min',    notes:'0.25-0.5 mg/kg bolus' },
     { name:'Magnesium',              conc:'',             bolusLo:50,   bolusHi:50,   bolusUnit:'mg/kg',      infLo:1,    infHi:2,    infUnit:'g/hr',          notes:'PET: 4 g over 20 min then 1 g/hr' },
-    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:1,    bolusHi:5,    bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Give 1-2 mg slow IV, repeat to 5 mg. Rate control in AF' },
+    { name:'Metoprolol',             conc:'1 mg/mL',      bolusLo:2.5,  bolusHi:15,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'2.5 mg boluses slow IV, repeat to a max of 15 mg total. Rate control in AF' },
     { name:'Nicardipine',            conc:'100 mcg/mL',   bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Controlled hypotension, hypertensive crisis' },
     { name:'Phentolamine',           conc:'600 mcg/mL',   bolusLo:1,    bolusHi:2,    bolusUnit:'mg (fixed)', infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'' },
     { name:'Sodium nitroprusside',   conc:'',             bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.5,  infHi:4,    infUnit:'mcg/kg/min',    notes:'Light-protect infusion. Monitor for cyanide toxicity if >3 mcg/kg/min or >72 hr' },
   ],
   'Antiarrhythmics': [
-    { name:'Adenosine',              conc:'',             bolusLo:0.3,  bolusHi:0.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Rapid IV push' },
+    { name:'Adenosine',              conc:'3 mg/mL',      bolusLo:6,    bolusHi:12,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'SVT: 6 mg rapid IV push into a large proximal vein + saline flush, then 12 mg, then 12 mg. NOT the 0.3-0.6 mg/kg neurosurgical flow-arrest dose - see Aneurysm Rupture (OR)' },
     { name:'Amiodarone',             conc:'50 mg/mL',     bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:5,    infHi:15,   infUnit:'mcg/kg/min',    maxDose:300,  notes:'Max 300 mg bolus. Load 300 mg IV over 20-60 min, then 900 mg over 24 hr. VT/AF' },
-    { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max 6 mg' },
+    { name:'Atropine',               conc:'0.6 mg/mL',    bolusLo:0.6,  bolusHi:1.2,  bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Bradycardia. Min 0.6 mg (paradoxical bradycardia with smaller doses). Max total 3 mg (ANZCOR 11.9)' },
     { name:'Lignocaine',             conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:20,   infHi:50,   infUnit:'mcg/kg/min',    notes:'Ventricular arrhythmias. Max bolus 6 mg/kg in 1 hr' },
     { name:'Sotalol',                conc:'10 mg/mL',     bolusLo:1,    bolusHi:1.5,  bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'AF/flutter. Infuse over 20 min. QTc monitoring. Avoid if renal impairment' },
   ],
@@ -2689,7 +2982,7 @@ const DRUG_CATS = {
     { name:'Ketamine',               conc:'10 mg/mL',     bolusLo:0.5,  bolusHi:2,    bolusUnit:'mg/kg',      infLo:2,    infHi:15,   infUnit:'mcg/kg/min',    notes:'Induction 1-2 mg/kg IV, sedation/dissociation lower range' },
     { name:'Midazolam',              conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.5,  infHi:5,    infUnit:'mcg/kg/min',    notes:'Titrate slowly. Reduce in elderly' },
     { name:'Morphine',               conc:'1 mg/mL',      bolusLo:0.05, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:10,   infHi:40,   infUnit:'mcg/kg/hr',     notes:'Titrate to effect. Reduce in renal impairment' },
-    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:25,   infHi:75,   infUnit:'mcg/kg/min',    notes:'TIVA: typically 50-150 mcg/kg/min. Sedation: 5-50 mcg/kg/min' },
+    { name:'Propofol',               conc:'10 mg/mL',     bolusLo:1,    bolusHi:2.5,  bolusUnit:'mg/kg',      infLo:50,   infHi:150,  infUnit:'mcg/kg/min',    notes:'TIVA 50-150 mcg/kg/min; sedation 5-50. Reduce in the elderly and the haemodynamically compromised' },
     { name:'Remifentanil',           conc:'50 mcg/mL',    bolusLo:null, bolusHi:null, bolusUnit:'',           infLo:0.05, infHi:2,    infUnit:'mcg/kg/min',    notes:'TIVA/analgosedation. Context-sensitive half-life ~3 min. No bolus recommended' },
     { name:'Thiopentone',            conc:'25 mg/mL',     bolusLo:3,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Induction. Reduce in compromised patients. ICP reduction' },
   ],
@@ -2706,14 +2999,14 @@ const DRUG_CATS = {
     { name:'Fibrinogen concentrate', conc:'',             bolusLo:70,   bolusHi:70,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Reconstitute and give over 5 min. Target fibrinogen >2 g/L in major haemorrhage' },
     { name:'Fresh frozen plasma',    conc:'',             bolusLo:10,   bolusHi:15,   bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Coagulopathy, massive transfusion. Takes 20-30 min to thaw' },
     { name:'Heparin',                conc:'',             bolusLo:50,   bolusHi:100,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'' },
-    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
-    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given. Max 50 mg. Infuse slowly - risk of hypotension/bronchospasm' },
+    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              maxDose:3000, notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
+    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given, to a ceiling of 50 mg per dose. Not weight-based - calculate from the heparin actually given. Infuse slowly - risk of hypotension/bronchospasm' },
     { name:'Tranexamic acid',        conc:'100 mg/mL',    bolusLo:15,   bolusHi:30,   bolusUnit:'mg/kg',      infLo:1,    infHi:5,    infUnit:'mg/kg/hr',      maxDose:2000, notes:'Max 2 g load. Load 1 g over 10 min then 1 g over 8 hr (CRASH-2). Major haemorrhage, obstetrics, cardiac surgery' },
     { name:'Vitamin K',              conc:'10 mg/mL',     bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Warfarin reversal. Onset 6-12 hr IV. Give slowly over 20-60 min' },
   ],
   'Bronchodilators': [
-    { name:'Aminophylline',          conc:'',             bolusLo:10,   bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Loading dose over 20-30 min. Reduce if already on theophylline' },
-    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:10,   bolusHi:10,   bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Slow IV. Neb: 2.5-5 mg' },
+    { name:'Aminophylline',          conc:'',             bolusLo:5,    bolusHi:5,    bolusUnit:'mg/kg',      infLo:0.5,  infHi:0.7,  infUnit:'mg/kg/hr',      maxDose:500,  notes:'Loading 5 mg/kg over 20-30 min (max 500 mg), then 0.5-0.7 mg/kg/hr. Omit or halve the load if already on theophylline - check a level' },
+    { name:'Salbutamol',             conc:'100 mcg/mL',   bolusLo:4,    bolusHi:4,    bolusUnit:'mcg/kg',     infLo:0.1,  infHi:0.3,  infUnit:'mcg/kg/min',    maxDose:250,  notes:'~250 mcg over 10 min (max 250 mcg), then 0.1-0.3 mcg/kg/min. Neb: 2.5-5 mg. Monitor K+ and lactate' },
   ],
   'Endocrine & metabolic': [
     { name:'Calcium chloride',        conc:'100 mg/mL',   bolusLo:5,    bolusHi:10,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              maxDose:1000, notes:'Max 1 g. 3x more elemental calcium than gluconate. Central line preferred. Cardiac arrest, severe hypocalcaemia' },
@@ -2937,22 +3230,20 @@ function calcBodyWeights() {
   var disp = document.getElementById('dd-bw-display');
   if (!wt || !ht) { disp.style.display = 'none'; return; }
   function rnd(v) { return Math.round(v); }
-  // Devine formula (height in cm, convert to inches over 60)
-  var htIn = (ht - 152.4) / 2.54;
-  var ibwM = Math.max(0, rnd(50 + 2.3 * htIn));
-  var ibwF = Math.max(0, rnd(45.5 + 2.3 * htIn));
-  // LBW: Janmahasatian formula
-  var bmi = wt / ((ht / 100) * (ht / 100));
-  var lbwM = rnd((9270 * wt) / (6680 + 216 * bmi));
-  var lbwF = rnd((9270 * wt) / (8780 + 244 * bmi));
-  // ABW: IBW + 0.4*(TBW - IBW)
-  var ibwMnum = Math.max(0, 50 + 2.3 * htIn);
-  var ibwFnum = Math.max(0, 45.5 + 2.3 * htIn);
-  var abwM = wt > ibwMnum ? rnd(ibwMnum + 0.4 * (wt - ibwMnum)) : ibwM;
-  var abwF = wt > ibwFnum ? rnd(ibwFnum + 0.4 * (wt - ibwFnum)) : ibwF;
-  document.getElementById('dd-ibw').textContent = ibwM + '/' + ibwF + ' kg (M/F)';
-  document.getElementById('dd-lbw').textContent = lbwM + '/' + lbwF + ' kg (M/F)';
-  document.getElementById('dd-abw').textContent = abwM + '/' + abwF + ' kg (M/F)';
+
+  // Same shared helpers as the patient card. This tab used to have its own copy
+  // that returned IBW when TBW <= IBW, so a 45 kg patient was shown an
+  // "adjusted body weight" of 61 kg - larger than the patient.
+  var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
+  var abwM = adjustedBW(wt, ht, 'm'), abwF = adjustedBW(wt, ht, 'f');
+  var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
+
+  document.getElementById('dd-ibw').textContent =
+    ibwM == null ? IBW_TOO_SHORT_NOTE : rnd(ibwM) + '/' + rnd(ibwF) + ' kg (M/F)';
+  document.getElementById('dd-abw').textContent =
+    abwM == null ? IBW_TOO_SHORT_NOTE : rnd(abwM) + '/' + rnd(abwF) + ' kg (M/F)';
+  document.getElementById('dd-lbw').textContent = rnd(lbwM) + '/' + rnd(lbwF) + ' kg (M/F)';
+
   disp.style.display = 'flex';
   disp.style.alignItems = 'center';
   disp.style.gap = '4px';
@@ -3029,19 +3320,85 @@ function renderAnticoagTable() {
 /* =======================================
    OPIOID CONVERSION
 ======================================= */
-// All values = equivalent mg (or mcg for fentanyl) to 10 mg PO morphine
-const OPIOIDS = [
-  { key:'po_morphine',      label:'PO Morphine',       equiv:10,   unit:'mg',  isFentanyl:false },
-  { key:'po_oxycodone',     label:'PO Oxycodone',      equiv:6.6,  unit:'mg',  isFentanyl:false },
-  { key:'po_hydromorphone', label:'PO Hydromorphone',  equiv:2,    unit:'mg',  isFentanyl:false },
-  { key:'po_codeine',       label:'PO Codeine',        equiv:75,   unit:'mg',  isFentanyl:false },
-  { key:'po_tramadol',      label:'PO Tramadol',       equiv:100,  unit:'mg',  isFentanyl:false },
-  { key:'po_tapentadol',    label:'PO Tapentadol',     equiv:25,   unit:'mg',  isFentanyl:false },
-  { key:'iv_morphine',      label:'IV Morphine',       equiv:3.3,  unit:'mg',  isFentanyl:false },
-  { key:'iv_oxycodone',     label:'IV Oxycodone',      equiv:3.3,  unit:'mg',  isFentanyl:false },
-  { key:'iv_fentanyl',      label:'IV Fentanyl',       equiv:50,   unit:'mcg', isFentanyl:true  },
-  { key:'po_methadone',     label:'PO Methadone',      equiv:null, unit:'mg',  isFentanyl:false, isMethadone:true, warning:'Caution — seek expert advice' },
+// Ripamonti bands the ratio on the oMEDD, so converting FROM methadone has to
+// solve for the band rather than band on the methadone dose. The old code used
+// different cut-points in each direction, so they were not inverses - 7.5 mg
+// methadone round-tripped back to 5 mg. Ratios are tried in ascending order and
+// the first self-consistent one wins, which reproduces the displayed table.
+const RIPAMONTI_BANDS = [
+  { maxOmedd: 30,       ratio: 4  },
+  { maxOmedd: 90,       ratio: 6  },
+  { maxOmedd: 300,      ratio: 8  },
+  { maxOmedd: Infinity, ratio: 12 }
 ];
+function ripamontiRatio(omedd) {
+  return RIPAMONTI_BANDS.find(b => omedd < b.maxOmedd).ratio;
+}
+function methadoneToOMEDD(methadoneDose) {
+  for (const b of RIPAMONTI_BANDS) {
+    const candidate = methadoneDose * b.ratio;
+    if (ripamontiRatio(candidate) === b.ratio) return { ratio: b.ratio, omedd: candidate };
+  }
+  const top = RIPAMONTI_BANDS[RIPAMONTI_BANDS.length - 1].ratio;
+  return { ratio: top, omedd: methadoneDose * top };
+}
+
+// All values = equivalent mg (or mcg for fentanyl) to 10 mg PO morphine
+/* ---------------------------------------------------------------------------
+   ANZCA Faculty of Pain Medicine, PS01(PM) Appendix 2 — Opioid Dose Equivalence
+   Calculation Table, October 2025.
+
+   ONE table. Both the Opioid Conversion tab and the oMEDD tab derive from it,
+   so they cannot drift apart again. `factor` is mg of oral morphine per unit of
+   the drug per day; the conversion tab's "equivalent to 10 mg PO morphine"
+   column is simply 10 / factor.
+
+   Methadone is deliberately absent: ANZCA excludes methadone, transmucosal
+   fentanyl and neuraxial opioids because their pharmacokinetics are complex and
+   variable. Methadone is handled separately by the Ripamonti method.
+--------------------------------------------------------------------------- */
+const ANZCA_OPIOIDS = [
+  // route,        name,               unit,      factor, conversion-tab key/label
+  { route:'Oral',        drug:'Morphine',           unit:'mg',     factor:1,    key:'po_morphine'      },
+  { route:'Oral',        drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'po_oxycodone'     },
+  { route:'Oral',        drug:'Hydromorphone',      unit:'mg',     factor:5,    key:'po_hydromorphone' },
+  { route:'Oral',        drug:'Codeine',            unit:'mg',     factor:0.13, key:'po_codeine'       },
+  { route:'Oral',        drug:'Dextropropoxyphene', unit:'mg',     factor:0.1,  key:'po_dextroprop'    },
+  { route:'Oral',        drug:'Tramadol',           unit:'mg',     factor:0.2,  key:'po_tramadol'      },
+  { route:'Oral',        drug:'Tapentadol',         unit:'mg',     factor:0.3,  key:'po_tapentadol'    },
+  { route:'Sublingual',  drug:'Buprenorphine',      unit:'mg',     factor:40,   key:'sl_buprenorphine' },
+  { route:'Rectal',      drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'pr_oxycodone'     },
+  { route:'Transdermal', drug:'Buprenorphine',      unit:'mcg/hr', factor:2,    key:'td_buprenorphine' },
+  { route:'Transdermal', drug:'Fentanyl',           unit:'mcg/hr', factor:3,    key:'td_fentanyl'      },
+  { route:'Parenteral',  drug:'Morphine',           unit:'mg',     factor:3,    key:'iv_morphine'      },
+  { route:'Parenteral',  drug:'Oxycodone',          unit:'mg',     factor:3,    key:'iv_oxycodone'     },
+  { route:'Parenteral',  drug:'Hydromorphone',      unit:'mg',     factor:15,   key:'iv_hydromorphone' },
+  { route:'Parenteral',  drug:'Codeine',            unit:'mg',     factor:0.25, key:'iv_codeine'       },
+  { route:'Parenteral',  drug:'Pethidine',          unit:'mg',     factor:0.4,  key:'iv_pethidine'     },
+  { route:'Parenteral',  drug:'Fentanyl',           unit:'mcg',    factor:0.2,  key:'iv_fentanyl'      },
+  { route:'Parenteral',  drug:'Sufentanil',         unit:'mcg',    factor:2,    key:'iv_sufentanil'    },
+];
+const ANZCA_SOURCE = 'ANZCA FPM PS01(PM) Appendix 2, October 2025';
+
+// ANZCA recommends take-home naloxone and education at or above this oMEDD.
+const THN_THRESHOLD_OMEDD = 40;
+
+function anzcaFactor(key) {
+  const e = ANZCA_OPIOIDS.find(o => o.key === key);
+  return e ? e.factor : null;
+}
+
+// Conversion tab: derived, never stored separately.
+const OPIOIDS = ANZCA_OPIOIDS.map(o => ({
+  key:   o.key,
+  label: o.route + ' ' + o.drug,
+  equiv: 10 / o.factor,
+  unit:  o.unit,
+  isFentanyl: o.drug === 'Fentanyl'
+})).concat([
+  { key:'po_methadone', label:'Oral Methadone', equiv:null, unit:'mg', isMethadone:true,
+    warning:'Excluded from ANZCA oMEDD — Ripamonti method, seek expert advice' }
+]);
 
 function calcOpioid() {
   const refKey  = document.getElementById('oc-ref').value;
@@ -3060,8 +3417,7 @@ function calcOpioid() {
   let poMorphineEquiv = null;
   if (hasCalc) {
     if (refOp.isMethadone) {
-      const mRefRatio = doseRaw <= 7.5 ? 4 : doseRaw <= 20 ? 6 : doseRaw <= 50 ? 8 : 12;
-      poMorphineEquiv = doseRaw * mRefRatio;
+      poMorphineEquiv = methadoneToOMEDD(doseRaw).omedd;
     } else {
       poMorphineEquiv = (doseRaw / refOp.equiv) * 10;
     }
@@ -3081,8 +3437,7 @@ function calcOpioid() {
     if (hasCalc && poMorphineEquiv !== null) {
       if (op.isMethadone) {
         // Ripamonti: ratio depends on the total oMEDD (= poMorphineEquiv)
-        const mRatio = poMorphineEquiv < 30 ? 4 : poMorphineEquiv < 90 ? 6 : poMorphineEquiv < 300 ? 8 : 12;
-        calcStr = fmtN(poMorphineEquiv / mRatio) + ' mg';
+        calcStr = fmtN(poMorphineEquiv / ripamontiRatio(poMorphineEquiv)) + ' mg';
       } else {
         const val = (poMorphineEquiv / 10) * op.equiv;
         calcStr = fmtN(val) + ' ' + op.unit;
@@ -3175,20 +3530,10 @@ function tribOpen() {
    oMEDD CALCULATOR
 ======================================= */
 var omeddRowId = 0;
-var OMEDD_DRUGS = [
-  {name:'Oral morphine',       unit:'mg',     factor:1},
-  {name:'Oral oxycodone',      unit:'mg',     factor:1.5},
-  {name:'Oral hydromorphone',  unit:'mg',     factor:5},
-  {name:'Oral codeine',        unit:'mg',     factor:0.15},
-  {name:'Oral tramadol',       unit:'mg',     factor:0.1},
-  {name:'Oral tapentadol',     unit:'mg',     factor:0.4},
-  {name:'IV/SC morphine',      unit:'mg',     factor:3},
-  {name:'IV/SC hydromorphone', unit:'mg',     factor:15},
-  {name:'IV/SC fentanyl',      unit:'mcg',    factor:0.1},
-  {name:'IV/SC oxycodone',     unit:'mg',     factor:2},
-  {name:'Buprenorphine patch', unit:'mcg/hr', factor:2.4},
-  {name:'Fentanyl patch',      unit:'mcg/hr', factor:2.4},
-];
+// oMEDD tab: the same ANZCA table, same factors.
+var OMEDD_DRUGS = ANZCA_OPIOIDS.map(function (o) {
+  return { name: o.route + ' ' + o.drug, unit: o.unit, factor: o.factor };
+});
 
 function addOmeddRow() {
   omeddRowId++;
@@ -3221,6 +3566,22 @@ function removeOmeddRow(id) {
   calcOmedd();
 }
 
+// Rendered from ANZCA_OPIOIDS so the displayed factors are the ones actually
+// used. The hand-written version had drifted: it stated buprenorphine patch
+// x 25 where the code used 2.4, and omitted two drugs entirely.
+function renderOmeddFactors() {
+  var el = document.getElementById('omedd-factors');
+  if (!el) return;
+  var byRoute = {};
+  ANZCA_OPIOIDS.forEach(function (o) {
+    (byRoute[o.route] = byRoute[o.route] || []).push(o.drug + ' (' + o.unit + ') \u00d7 ' + o.factor);
+  });
+  el.innerHTML = '<strong>Conversion factors &mdash; ' + ANZCA_SOURCE + '</strong><br>' +
+    Object.keys(byRoute).map(function (r) {
+      return '<span style="color:var(--text2)">' + r + ':</span> ' + byRoute[r].join(' &bull; ');
+    }).join('<br>');
+}
+
 function calcOmedd() {
   var total = 0;
   var rows = document.getElementById('omedd-rows').children;
@@ -3245,6 +3606,14 @@ function calcOmedd() {
     total += eq;
   }
   document.getElementById('omedd-total').textContent = total.toFixed(1) + ' mg/day';
+
+  // ANZCA recommends take-home naloxone and education at oMEDD >= 40 mg/day.
+  var thn = document.getElementById('omedd-thn');
+  if (thn) {
+    thn.style.display = total >= THN_THRESHOLD_OMEDD ? 'block' : 'none';
+    thn.textContent = 'oMEDD \u2265 ' + THN_THRESHOLD_OMEDD +
+      ' mg/day \u2014 ANZCA recommends take-home naloxone and patient education.';
+  }
   // Ripamonti methadone equivalent
 
   var warn = document.getElementById('omedd-warning');
@@ -3254,10 +3623,14 @@ function calcOmedd() {
 }
 
 // Start with one row
-document.addEventListener('DOMContentLoaded', function() {
+// Called directly, like installInputGuards(): this script is the last thing in
+// <body>, so the elements already exist, and deferring left the oMEDD tab empty
+// for the window between parse and DOMContentLoaded.
+(function initOmedd() {
   var el = document.getElementById('omedd-rows');
-  if (el) addOmeddRow();
-});
+  if (el && !el.children.length) addOmeddRow();
+  renderOmeddFactors();
+})();
 
 /* =======================================
    POCUS SUB-TAB NAVIGATION
@@ -3525,6 +3898,17 @@ function buildRegList() {
   });
 }
 
+// Every block's LA volume is a static suggestion with no weight input. The
+// "do not exceed max dose" caveat was on some blocks and not others; it is now
+// appended to all of them, with a link to the LA calculator.
+const LA_CAVEAT = 'Check against the maximum dose for this patient - see the LA Toxicity calculator.';
+
+function laCaveat(text) {
+  return /max dose|maximum dose/i.test(text || '')
+    ? text
+    : (text ? text + ' ' : '') + LA_CAVEAT;
+}
+
 function showBlock(id, group) {
   regCurrentBlock = id;
   // Highlight selected
@@ -3596,7 +3980,7 @@ function showBlock(id, group) {
         ${row('Needle', b.needle)}
         ${row('Best view', b.bestView)}
         ${row('Technique', b.technique)}
-        ${row('LA volume', b.la)}
+        ${row('LA volume', laCaveat(b.la))}
         ${row('Depth', b.depth)}
         ${riskRow(b.risks)}
         ${b.tips ? `<div style="margin-top:12px;padding:10px 14px;background:var(--blue3);border-left:3px solid var(--blue2);border-radius:0 var(--r) var(--r) 0">

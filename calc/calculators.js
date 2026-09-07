@@ -1,0 +1,438 @@
+/*
+ * calculators.js — pure calculation logic extracted from index.html.
+ *
+ * Extracted verbatim: this module reproduces the application's CURRENT behaviour
+ * exactly, defects included, so that it can be pinned by tests before any fix is
+ * applied. Known defects are annotated with their finding ID from
+ * CALCULATOR_AUDIT.md. Do not "tidy" an annotated line — the tests assert it.
+ *
+ * No DOM access. Every function takes values and returns values.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.Calc = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------- shared */
+
+  function fmtN(n) {
+    if (n == null || isNaN(n) || !isFinite(n)) return '-';
+    return n >= 100 ? Math.round(n).toString() : n >= 10 ? n.toFixed(1) : n.toFixed(2);
+  }
+
+  function roundHalfUp(x) {
+    return Math.ceil(x * 2) / 2;   // always rounds up — see F5(c)
+  }
+
+  /* ------------------------------------------------------------ body weight */
+
+  // Devine, metric. Defined from 152.4 cm (5 ft) up; below that it returns
+  // nonsense (100 cm gave 0-2.6 kg) and previously clamped to 0 rather than
+  // declining, which then made ABW 0.4 x TBW. Now returns null (F19 fixed).
+  var DEVINE_MIN_HEIGHT_CM = 152.4;
+
+  function devineIBW(heightCm, sex) {
+    if (!(heightCm >= DEVINE_MIN_HEIGHT_CM)) return null;
+    var htIn = (heightCm - 152.4) / 2.54;
+    var base = sex === 'm' ? 50 : 45.5;
+    return base + 2.3 * htIn;
+  }
+
+  // Janmahasatian lean body weight.
+  function lbw(weightKg, heightCm, sex) {
+    var bmi = weightKg / ((heightCm / 100) * (heightCm / 100));
+    return sex === 'm'
+      ? (9270 * weightKg) / (6680 + 216 * bmi)
+      : (9270 * weightKg) / (8780 + 244 * bmi);
+  }
+
+  // Adjusted body weight, single definition. The drugs tab used to return IBW
+  // when TBW <= IBW, which gives an "adjusted" weight LARGER than the patient -
+  // the dangerous direction for anything dosed on ABW. Both call sites now use
+  // this, and it never exceeds actual weight (F14 fixed).
+  function abw(weightKg, heightCm, sex) {
+    var ibw = devineIBW(heightCm, sex);
+    if (ibw == null) return null;
+    return weightKg > ibw ? ibw + 0.4 * (weightKg - ibw) : weightKg;
+  }
+
+  /* ------------------------------------------------------------------- age */
+
+  // The old version clamped the day-of-month borrow with Math.max(0, mo - 1),
+  // which swallowed it instead of decrementing the year - so the day before a
+  // birthday read as the full year, and could push a child across the 12-month
+  // APLS band. A future date produced a negative age. Both fixed (F15).
+  function ageFromDOB(dobDate, nowDate) {
+    if (!(dobDate instanceof Date) || isNaN(dobDate)) return null;
+    if (dobDate > nowDate) return null;                     // not yet born
+    var yr = nowDate.getFullYear() - dobDate.getFullYear();
+    var mo = nowDate.getMonth() - dobDate.getMonth();
+    if (nowDate.getDate() < dobDate.getDate()) mo--;        // borrow a month
+    if (mo < 0) { yr--; mo += 12; }                         // then borrow a year
+    if (yr < 0) return null;
+    return { years: yr, months: mo };
+  }
+
+  // Any months >= 12 roll into years. Both age cards normalise through this, so
+  // 17 months entered anywhere becomes 1y 5m everywhere (F24 fixed).
+  function normaliseAge(yr, mo) {
+    var total = (yr || 0) * 12 + (mo || 0);
+    if (!(total >= 0)) total = 0;
+    return { years: Math.floor(total / 12), months: total % 12, totalMonths: total };
+  }
+
+  function formatPaedAge(yr, mo, totalMonths) {
+    if (!(totalMonths > 0)) return '-';
+    var n = normaliseAge(yr, mo);
+    return n.years > 0 ? n.years + 'y ' + n.months + 'm' : n.months + 'm';
+  }
+
+  /* -------------------------------------------------- paediatric weight/APLS */
+
+  // APLS 2011. Verified identical to the published formulae at every month
+  // 0-12y (Addendum B.1). APLS is defined only to 12 years, so the function
+  // refuses beyond it rather than extrapolating (F1 fixed).
+  // F20 remains open: fractional age sends 5-6y to the 6-12y formula.
+  var APLS_MAX_MONTHS = 144;   // 12 years
+
+  // The band is chosen by COMPLETED years, not fractional age. APLS defines
+  // 1-5 and 6-12 with nothing between, and selecting on `yr <= 5` sent every
+  // child from 5.01 years onward to the 6-12 formula - a 5.5-year-old was
+  // estimated at 23.5 kg where the 1-5 band gives 19 (F20 fixed). Within a
+  // band the fractional age is still used, so the curve stays smooth.
+  function aplsWeight(totalMonths) {
+    var yr = totalMonths / 12;
+    if (!(totalMonths >= 0))           return null;
+    if (totalMonths < 3)               return null;
+    if (totalMonths > APLS_MAX_MONTHS) return null;
+    if (totalMonths < 12)              return Math.round((totalMonths / 2 + 4) * 10) / 10;
+    if (Math.floor(yr) <= 5)           return Math.round((2 * (yr + 4)) * 10) / 10;
+    return Math.round((3 * yr + 7) * 10) / 10;
+  }
+
+  function aplsFormula(totalMonths) {
+    var yr = totalMonths / 12;
+    if (totalMonths > APLS_MAX_MONTHS) return 'over 12 years - enter actual weight';
+    if (totalMonths < 12)    return '(age_mo / 2) + 4';
+    if (Math.floor(yr) <= 5) return '2 x (age + 4)';
+    return '3 x age + 7';
+  }
+
+  function paedWeight(yr, mo, actualWt) {
+    if (actualWt) return actualWt;
+    var totalMonths = (yr || 0) * 12 + (mo || 0);
+    if (totalMonths === 0) return null;
+    return aplsWeight(totalMonths);
+  }
+
+  /* ------------------------------------------------------------ paed dosing */
+
+  // Holliday-Segar: 4 mL/kg/hr for the first 10 kg, 2 for the next 10, 1 beyond.
+  // Previously the '4-2-1' row fell through parseDoseRange and produced a flat
+  // 4 mL/kg/hr - 180 mL/hr for a 45 kg child instead of 85 (F9).
+  function maintenanceFluid(wt) {
+    if (!wt || wt <= 0) return null;
+    if (wt <= 10) return 4 * wt;
+    if (wt <= 20) return 40 + 2 * (wt - 10);
+    return 60 + (wt - 20);
+  }
+
+  var MAINTENANCE_KEY = '4-2-1';
+
+  function parseDoseRange(str) {
+    if (!str || str === MAINTENANCE_KEY) return null;   // handled by maintenanceFluid
+    var p = str.split('-');
+    if (p.length === 2) return { lo: parseFloat(p[0]), hi: parseFloat(p[1]) };
+    var v = parseFloat(p[0]);
+    return isNaN(v) ? null : { lo: v, hi: v };
+  }
+
+  function calcDose(str, wt) {
+    if (!wt) return null;
+    if (str === MAINTENANCE_KEY) {
+      var m = maintenanceFluid(wt);
+      return m == null ? null : { lo: m, hi: m };
+    }
+    var r = parseDoseRange(str);
+    if (!r) return null;
+    return { lo: r.lo * wt, hi: r.hi * wt };
+  }
+
+  // F3: the cap is applied only when a maxDose FIELD exists. A "Max X" written
+  // into the note text alone is never enforced.
+  function applyMaxDose(dose, maxDose) {
+    if (!dose || maxDose == null) return dose;
+    return { lo: Math.min(dose.lo, maxDose), hi: Math.min(dose.hi, maxDose) };
+  }
+
+  function paracetamolIVDose(wt) {
+    var perKg = wt < 5 ? 7.5 : wt <= 10 ? 10 : 15;
+    return Math.min(perKg * wt, 1000);
+  }
+
+  /* ------------------------------------------------------------ paed airway */
+
+  // Age inferred from weight, when only a weight is known. The old version
+  // inverted the INFANT formula (wt = months/2 + 4) but read the result as
+  // YEARS, over-estimating age - and so tube size - above about 20 kg (a 30 kg
+  // child came out as 11 years and was offered a 7.0 mm tube). Each APLS band
+  // is now inverted on its own terms.
+  function airwayAgeFallback(wt) {
+    if (!(wt > 0)) return null;
+    if (wt < 4)  return null;              // below the infant formula's floor
+    if (wt <= 10) return (2 * (wt - 4)) / 12;   // infant:  wt = months/2 + 4
+    if (wt <= 18) return (wt - 8) / 2;          // 1-5y:    wt = 2*age + 8
+    if (wt <= 43) return (wt - 7) / 3;          // 6-12y:   wt = 3*age + 7
+    return null;                                // adult range - do not guess
+  }
+
+  // Cole's formulae hold from roughly 1 year. Below that they oversize badly:
+  // a term neonate came out at 4.0 mm sited 12 cm at the lip, where 3.0-3.5 mm
+  // at 9-10 cm is correct. Under 1 year is therefore a weight-banded lookup and
+  // the depth rule is weight + 6 cm.
+  //
+  // CLINICAL VALUES - confirm against your institution's own guideline.
+  var INFANT_ETT = [
+    { maxWt: 1,        uncuffed: 2.5, cuffed: null, label: '<1 kg' },
+    { maxWt: 2,        uncuffed: 3.0, cuffed: null, label: '1-2 kg' },
+    { maxWt: 3,        uncuffed: 3.0, cuffed: 3.0,  label: '2-3 kg' },
+    { maxWt: Infinity, uncuffed: 3.5, cuffed: 3.0,  label: '>3 kg / term' }
+  ];
+
+  var COLE_MIN_AGE_YEARS = 1;
+  var AIRWAY_MAX_AGE_YEARS = 12;
+
+  function airwaySizes(ageYears, weightKg) {
+    if (ageYears == null || !(ageYears >= 0)) return null;
+    if (ageYears > AIRWAY_MAX_AGE_YEARS) return null;   // adult sizing, not this table
+
+    if (ageYears < COLE_MIN_AGE_YEARS) {
+      if (!(weightKg > 0)) return { needsWeight: true };
+      var band = INFANT_ETT.find(function (b) { return weightKg <= b.maxWt; });
+      var depth = Math.round((weightKg + 6) * 2) / 2;   // weight + 6 cm at the lip
+      return {
+        infant: true, band: band.label,
+        ettUncuffed: band.uncuffed,
+        ettCuffed:   band.cuffed,
+        depthLip:    depth,
+        depthNose:   depth + 2
+      };
+    }
+    return {
+      infant: false,
+      ettUncuffed: roundHalfUp(ageYears / 4 + 4),
+      ettCuffed:   roundHalfUp(ageYears / 4 + 3.5),
+      depthLip:    roundHalfUp(ageYears / 2 + 12),
+      depthNose:   roundHalfUp(ageYears / 2 + 15)
+    };
+  }
+
+  // Verified correct against the classic LMA chart across all seven bands.
+  function lmaSize(wt) {
+    if (wt < 5)  return { size: '1',   maxCuff: 4  };
+    if (wt < 10) return { size: '1.5', maxCuff: 7  };
+    if (wt < 20) return { size: '2',   maxCuff: 10 };
+    if (wt < 30) return { size: '2.5', maxCuff: 14 };
+    if (wt < 50) return { size: '3',   maxCuff: 20 };
+    if (wt < 70) return { size: '4',   maxCuff: 30 };
+    return { size: '5', maxCuff: 40 };
+  }
+
+  /* ------------------------------------------------------------- LA toxicity */
+
+  var LA_DRUGS = {
+    lig:    { name: 'Lignocaine',               mgkg: 3, ceil: 200 },
+    ligadr: { name: 'Lignocaine + Adrenaline',  mgkg: 7, ceil: 500 },
+    bupi:   { name: 'Bupivacaine',              mgkg: 2, ceil: 150 },
+    ropi:   { name: 'Ropivacaine',              mgkg: 3, ceil: 300 }
+  };
+
+  // F4 fixed. Two changes from the original:
+  //   1. min(IBW, TBW) rather than IBW-wins. Using IBW is the right conservative
+  //      choice in obesity, but for a patient lighter than their ideal weight it
+  //      RAISED the ceiling — 36-41% above the true limit in the audited cases.
+  //   2. Devine is not evaluated below its valid range (152.4 cm). Previously a
+  //      100 cm child produced an IBW of 2.5 kg and a lignocaine ceiling of
+  //      7.5 mg; now it falls back to actual weight.
+  var DEVINE_MIN_HEIGHT_CM = 152.4;
+
+  function laWeightUsed(heightCm, weightKg, sex) {
+    var ibw = null;
+    if (heightCm && sex && heightCm >= DEVINE_MIN_HEIGHT_CM) {
+      ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (heightCm - 152.4)) * 10) / 10;
+      if (ibw < 1) ibw = null;
+    }
+    if (ibw != null && weightKg) return Math.min(ibw, weightKg);
+    return weightKg || ibw || null;
+  }
+
+  function laMaxDose(drugKey, weightUsed) {
+    var d = LA_DRUGS[drugKey];
+    if (!d) return null;
+    var wtMax = weightUsed ? d.mgkg * weightUsed : null;
+    return d.ceil ? (wtMax ? Math.min(wtMax, d.ceil) : d.ceil) : wtMax;
+  }
+
+  // Cumulative toxicity fraction. Verified sound.
+  function cumulativeToxicFraction(rows, weightUsed) {
+    var total = 0;
+    var perRow = rows.map(function (r) {
+      var mgPerMl = r.concPct * 10;
+      var absMax  = laMaxDose(r.key, weightUsed);
+      var dose    = r.volMl * mgPerMl;
+      var frac    = absMax && r.volMl > 0 ? dose / absMax : 0;
+      total += frac;
+      return { key: r.key, mgPerMl: mgPerMl, absMax: absMax, dose: dose, frac: frac };
+    });
+    var remaining = Math.max(0, 1 - total);
+    perRow.forEach(function (r) {
+      r.safeVolRemainingMl = r.absMax ? remaining * r.absMax / r.mgPerMl : null;
+    });
+    return { total: total, remaining: remaining, rows: perRow };
+  }
+
+  /* ----------------------------------------------------------------- opioids */
+
+  /* ANZCA FPM PS01(PM) Appendix 2, October 2025. One table; both the opioid
+     conversion tab and the oMEDD tab derive from it, so they cannot diverge.
+     `factor` is mg of oral morphine per unit per day; the conversion tab's
+     "equivalent to 10 mg PO morphine" column is 10 / factor.
+     Methadone is deliberately absent - ANZCA excludes it, transmucosal fentanyl
+     and neuraxial opioids because their pharmacokinetics are variable. */
+  var ANZCA_OPIOIDS = [
+    { route:'Oral',        drug:'Morphine',           unit:'mg',     factor:1,    key:'po_morphine'      },
+    { route:'Oral',        drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'po_oxycodone'     },
+    { route:'Oral',        drug:'Hydromorphone',      unit:'mg',     factor:5,    key:'po_hydromorphone' },
+    { route:'Oral',        drug:'Codeine',            unit:'mg',     factor:0.13, key:'po_codeine'       },
+    { route:'Oral',        drug:'Dextropropoxyphene', unit:'mg',     factor:0.1,  key:'po_dextroprop'    },
+    { route:'Oral',        drug:'Tramadol',           unit:'mg',     factor:0.2,  key:'po_tramadol'      },
+    { route:'Oral',        drug:'Tapentadol',         unit:'mg',     factor:0.3,  key:'po_tapentadol'    },
+    { route:'Sublingual',  drug:'Buprenorphine',      unit:'mg',     factor:40,   key:'sl_buprenorphine' },
+    { route:'Rectal',      drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'pr_oxycodone'     },
+    { route:'Transdermal', drug:'Buprenorphine',      unit:'mcg/hr', factor:2,    key:'td_buprenorphine' },
+    { route:'Transdermal', drug:'Fentanyl',           unit:'mcg/hr', factor:3,    key:'td_fentanyl'      },
+    { route:'Parenteral',  drug:'Morphine',           unit:'mg',     factor:3,    key:'iv_morphine'      },
+    { route:'Parenteral',  drug:'Oxycodone',          unit:'mg',     factor:3,    key:'iv_oxycodone'     },
+    { route:'Parenteral',  drug:'Hydromorphone',      unit:'mg',     factor:15,   key:'iv_hydromorphone' },
+    { route:'Parenteral',  drug:'Codeine',            unit:'mg',     factor:0.25, key:'iv_codeine'       },
+    { route:'Parenteral',  drug:'Pethidine',          unit:'mg',     factor:0.4,  key:'iv_pethidine'     },
+    { route:'Parenteral',  drug:'Fentanyl',           unit:'mcg',    factor:0.2,  key:'iv_fentanyl'      },
+    { route:'Parenteral',  drug:'Sufentanil',         unit:'mcg',    factor:2,    key:'iv_sufentanil'    }
+  ];
+  var THN_THRESHOLD_OMEDD = 40;   // ANZCA: take-home naloxone at or above this
+
+  var OPIOID_EQUIV = {};
+  var OMEDD_FACTORS = {};
+  ANZCA_OPIOIDS.forEach(function (o) {
+    OPIOID_EQUIV[o.key] = 10 / o.factor;
+    OMEDD_FACTORS[o.route + ' ' + o.drug] = o.factor;
+  });
+
+  function toOralMorphine(opioidKey, dose) {
+    var e = OPIOID_EQUIV[opioidKey];
+    if (e == null) return null;
+    return (dose / e) * 10;
+  }
+
+  function fromOralMorphine(opioidKey, poMorphineEquiv) {
+    var e = OPIOID_EQUIV[opioidKey];
+    if (e == null) return null;
+    return (poMorphineEquiv / 10) * e;
+  }
+
+  // Ripamonti bands the ratio on the oMEDD, so the reverse direction has to
+  // solve for the band rather than band on the methadone dose - which is what
+  // the old version did, using different cut-points, so the two were not
+  // inverses (7.5 mg round-tripped back to 5 mg). Ratios are tried in
+  // ascending order and the first self-consistent one wins, which reproduces
+  // the forward table exactly (F16 fixed).
+  var RIPAMONTI_BANDS = [
+    { maxOmedd: 30,       ratio: 4  },
+    { maxOmedd: 90,       ratio: 6  },
+    { maxOmedd: 300,      ratio: 8  },
+    { maxOmedd: Infinity, ratio: 12 }
+  ];
+
+  function ripamontiRatio(omedd) {
+    return RIPAMONTI_BANDS.find(function (b) { return omedd < b.maxOmedd; }).ratio;
+  }
+
+  function methadoneToOMEDD(methadoneDose) {
+    for (var i = 0; i < RIPAMONTI_BANDS.length; i++) {
+      var r = RIPAMONTI_BANDS[i].ratio;
+      var candidate = methadoneDose * r;
+      if (ripamontiRatio(candidate) === r) return { ratio: r, omedd: candidate };
+    }
+    var top = RIPAMONTI_BANDS[RIPAMONTI_BANDS.length - 1].ratio;
+    return { ratio: top, omedd: methadoneDose * top };
+  }
+
+  function omeddToMethadone(omedd) {
+    var r = ripamontiRatio(omedd);
+    return { ratio: r, methadone: omedd / r };
+  }
+
+  function omeddTotal(entries) {
+    return entries.reduce(function (t, e) {
+      var f = OMEDD_FACTORS[e.drug];
+      return t + (f == null ? 0 : e.dose * f);   // unknown drug contributes 0
+    }, 0);
+  }
+
+  function omeddWarning(total) {
+    if (total >= 200) return 'very-high';
+    if (total >= 100) return 'high';
+    return null;
+  }
+
+  /* ------------------------------------------------------- adult drug dosing */
+
+  function isFixedUnit(unit) {
+    return unit.indexOf('fixed') !== -1 || unit === 'g/hr' || unit === 'mL/kg' ||
+           unit === 'mcg/kg/hr' || unit === 'units/kg/hr' || unit === 'units/kg';
+  }
+
+  function adultBolus(lo, hi, unit, wt, maxDose) {
+    if (lo === null || !wt) return null;
+    var cap = function (v) { return maxDose != null ? Math.min(v, maxDose) : v; };
+    if (!isFixedUnit(unit)) return { lo: cap(lo * wt), hi: cap(hi * wt), unit: unit.replace('/kg', '') };
+    if (unit === 'units/kg')    return { lo: cap(lo * wt), hi: cap(hi * wt), unit: 'units' };
+    if (unit === 'units/kg/hr') return { lo: lo * wt, hi: hi * wt, unit: 'units/hr' };
+    if (unit === 'mL/kg')       return { lo: cap(lo * wt), hi: cap(hi * wt), unit: 'mL' };
+    if (unit === 'mcg/kg/hr')   return { lo: lo * wt, hi: hi * wt, unit: 'mcg/hr' };
+    return null;   // genuinely fixed — no per-kg calculation
+  }
+
+  function abxDose(doseWtStr, wt, maxDose, maxDoseFn) {
+    if (!wt || !doseWtStr) return null;
+    var m = doseWtStr.match(/([\d.]+)\s*(mg|g|mcg)\/kg/);
+    if (!m) return null;
+    var rawMg = parseFloat(m[1]) * wt * (m[2] === 'g' ? 1000 : 1);
+    var maxMg = maxDoseFn === 'cefazolin' ? (wt >= 100 ? 3000 : 2000)
+                                          : (maxDose != null ? maxDose : null);
+    var capped = maxMg != null && rawMg > maxMg;
+    if (capped) rawMg = maxMg;
+    return { mg: rawMg, display: m[2] === 'g' ? rawMg / 1000 : rawMg, unit: m[2], capped: capped };
+  }
+
+  return {
+    fmtN: fmtN, roundHalfUp: roundHalfUp,
+    devineIBW: devineIBW, lbw: lbw, abw: abw,
+    ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
+    aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
+    parseDoseRange: parseDoseRange, calcDose: calcDose, applyMaxDose: applyMaxDose,
+    maintenanceFluid: maintenanceFluid, INFANT_ETT: INFANT_ETT,
+    paracetamolIVDose: paracetamolIVDose,
+    airwayAgeFallback: airwayAgeFallback, airwaySizes: airwaySizes, lmaSize: lmaSize,
+    LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
+    cumulativeToxicFraction: cumulativeToxicFraction,
+    ANZCA_OPIOIDS: ANZCA_OPIOIDS, THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,
+    OPIOID_EQUIV: OPIOID_EQUIV, OMEDD_FACTORS: OMEDD_FACTORS,
+    toOralMorphine: toOralMorphine, fromOralMorphine: fromOralMorphine,
+    methadoneToOMEDD: methadoneToOMEDD, omeddToMethadone: omeddToMethadone,
+    ripamontiRatio: ripamontiRatio, RIPAMONTI_BANDS: RIPAMONTI_BANDS,
+    omeddTotal: omeddTotal, omeddWarning: omeddWarning,
+    isFixedUnit: isFixedUnit, adultBolus: adultBolus, abxDose: abxDose
+  };
+}));
