@@ -70,9 +70,15 @@ test('FIXED F3: caps do not fire below the threshold', () => {
   is(dose('Adrenaline', 20), 0.2, '20 kg IM anaphylaxis:');
   is(dose('Midazolam', 10), 5, '10 kg premed:');
 });
-pending('F3', 'every adult "Max N" in prose must have a maxDose field', () => {
+test('FIXED F3: every adult "Max N" in prose has a maxDose field', () => {
   const bad = unenforced(D.ADULT_DRUGS, 'notes');
   if (bad.length) throw new Error(`${bad.length} unenforced: ${bad.map(d => d.name).join(', ')}`);
+});
+
+test('FIXED F3: the adult caps bite', () => {
+  const pcc = D.ADULT_DRUGS.find(d => d.name === 'PCC (Octaplex/Beriplex)');
+  is(pcc.maxDose, 3000, 'PCC was uncapped — 50 units/kg at 90 kg is 4500 units:');
+  is(Math.min(50 * 90, pcc.maxDose), 3000);
 });
 
 test('drugs that DO enforce their cap keep doing so', () => {
@@ -119,29 +125,55 @@ test('the app states the SVT dose correctly on its Tachycardia page', () => {
 
 /* --------------------- internal consistency across tabs ------------------ */
 
-test('CURRENT: the two opioid tools disagree (F6)', () => {
-  const conv = k => 10 / D.OPIOIDS.find(o => o.key === k).equiv;
-  const om   = n => D.OMEDD_DRUGS.find(o => o.name === n).factor;
-  const near = (a, b) => Math.abs(a - b) / b <= 0.05;
-  if (near(conv('iv_fentanyl'), om('IV/SC fentanyl'))) throw new Error('expected fentanyl to still disagree');
-  if (near(conv('iv_oxycodone'), om('IV/SC oxycodone'))) throw new Error('expected oxycodone to still disagree');
-});
-pending('F6', 'the two opioid tools must use the same factor for every shared drug', () => {
-  const pairs = [['po_morphine','Oral morphine'],['po_oxycodone','Oral oxycodone'],
-                 ['po_hydromorphone','Oral hydromorphone'],['po_codeine','Oral codeine'],
-                 ['po_tramadol','Oral tramadol'],['po_tapentadol','Oral tapentadol'],
-                 ['iv_morphine','IV/SC morphine'],['iv_oxycodone','IV/SC oxycodone'],
-                 ['iv_fentanyl','IV/SC fentanyl']];
-  const bad = pairs.filter(([k, n]) => {
-    const a = 10 / D.OPIOIDS.find(o => o.key === k).equiv;
-    const b = D.OMEDD_DRUGS.find(o => o.name === n).factor;
-    return Math.abs(a - b) / b > 0.05;
+// ANZCA FPM PS01(PM) Appendix 2, October 2025 — transcribed from the PDF.
+const ANZCA_PRIMARY = {
+  'Oral Morphine': 1, 'Oral Oxycodone': 1.5, 'Oral Hydromorphone': 5,
+  'Oral Codeine': 0.13, 'Oral Dextropropoxyphene': 0.1, 'Oral Tramadol': 0.2,
+  'Oral Tapentadol': 0.3, 'Sublingual Buprenorphine': 40, 'Rectal Oxycodone': 1.5,
+  'Transdermal Buprenorphine': 2, 'Transdermal Fentanyl': 3,
+  'Parenteral Morphine': 3, 'Parenteral Oxycodone': 3, 'Parenteral Hydromorphone': 15,
+  'Parenteral Codeine': 0.25, 'Parenteral Pethidine': 0.4, 'Parenteral Fentanyl': 0.2,
+  'Parenteral Sufentanil': 2
+};
+
+test('FIXED F6: index.html carries the ANZCA table verbatim', () => {
+  is(D.ANZCA_OPIOIDS.length, Object.keys(ANZCA_PRIMARY).length, 'preparation count:');
+  D.ANZCA_OPIOIDS.forEach(o => {
+    const name = o.route + ' ' + o.drug;
+    if (!(name in ANZCA_PRIMARY)) throw new Error(`${name} is not in the ANZCA table`);
+    is(o.factor, ANZCA_PRIMARY[name], `${name}:`);
   });
-  if (bad.length) throw new Error(`disagree: ${bad.map(p => p[1]).join(', ')}`);
 });
 
-test('CURRENT: methadone is absent from the oMEDD list (F8)', () => {
+test('FIXED F6: both tools are derived from it, so they cannot diverge', () => {
+  D.ANZCA_OPIOIDS.forEach(o => {
+    const conv = 10 / D.OPIOIDS.find(x => x.key === o.key).equiv;
+    const om   = D.OMEDD_DRUGS.find(x => x.name === o.route + ' ' + o.drug).factor;
+    if (Math.abs(conv - o.factor) > 1e-9) throw new Error(`${o.drug}: conversion tab ${conv} vs ${o.factor}`);
+    if (Math.abs(om - o.factor) > 1e-9)   throw new Error(`${o.drug}: oMEDD tab ${om} vs ${o.factor}`);
+  });
+});
+
+test('FIXED F6: neither tool stores its own factor list any more', () => {
+  if (/const OPIOIDS = \[\s*\{ key:/.test(D.SRC)) throw new Error('conversion tab still has a hard-coded list');
+  if (/var OMEDD_DRUGS = \[\s*\{name:/.test(D.SRC)) throw new Error('oMEDD tab still has a hard-coded list');
+  is((D.SRC.match(/const ANZCA_OPIOIDS/g) || []).length, 1, 'one table:');
+});
+
+test('FIXED F6: the source and date are stated on screen', () => {
+  if (!/ANZCA FPM PS01\(PM\) Appendix 2, October 2025/.test(D.SRC)) {
+    throw new Error('the table is not attributed');
+  }
+});
+
+test('the take-home naloxone threshold is present', () => {
+  if (!/THN_THRESHOLD_OMEDD = 40/.test(D.SRC)) throw new Error('THN threshold missing');
+  if (!/take-home naloxone/i.test(D.SRC)) throw new Error('THN prompt text missing');
+});
+
+test('methadone is absent from the oMEDD list, as ANZCA intends (F8)', () => {
   is(D.OMEDD_DRUGS.some(o => /methadone/i.test(o.name)), false);
+  if (!/Methadone is not included/.test(D.SRC)) throw new Error('the exclusion is not stated');
 });
 
 /* ---- the adult table must agree with the app's own emergency algorithms ---- */
@@ -201,18 +233,10 @@ test('FIXED F11: the sugammadex note has the block depths the right way round', 
   if (!/16 mg\/kg/.test(n))             throw new Error('16 mg/kg rescue dose missing');
 });
 
-test('FIXED F7: the oMEDD footnote lists the factors the code actually uses', () => {
-  const m = D.SRC.match(/Conversion factors:([^<]*)/);
-  if (!m) throw new Error('footnote not found');
-  const shown = m[1];
-  [['Buprenorphine patch', 2.4], ['Fentanyl patch', 2.4], ['IV/SC oxycodone', 2], ['Oral tapentadol', 0.4]]
-    .forEach(([name, factor]) => {
-      const code = D.OMEDD_DRUGS.find(o => o.name === name).factor;
-      is(code, factor, `${name} code factor:`);
-      if (!new RegExp(name.replace(/[/]/g, '[/]') + '[^0-9]*' + String(factor).replace('.', '[.]')).test(shown)) {
-        throw new Error(`footnote does not show ${name} x ${factor}: ${shown.trim()}`);
-      }
-    });
+test('FIXED F7: the footnote is generated from the table, not hand-written', () => {
+  if (/Conversion factors: Oral morphine 1/.test(D.SRC)) throw new Error('hand-written footnote remains');
+  if (!/function renderOmeddFactors/.test(D.SRC)) throw new Error('footnote renderer missing');
+  if (!/id="omedd-factors"/.test(D.SRC)) throw new Error('footnote element missing');
 });
 
 test('FIXED F8: the oMEDD tab says methadone is excluded', () => {

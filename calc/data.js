@@ -42,25 +42,53 @@ function extract(name) {
   throw new Error(`unterminated literal for ${name}`);
 }
 
+// Slice `const NAME = <expression>;` and evaluate it, with any earlier
+// definitions it depends on already in scope. OPIOIDS and OMEDD_DRUGS are now
+// DERIVED from the single ANZCA table rather than being literals, which is the
+// whole point of that change - so they have to be evaluated, not parsed.
+// Slice `const NAME = <expression>;` and evaluate it, with any earlier
+// definitions it depends on already in scope. OPIOIDS and OMEDD_DRUGS are now
+// DERIVED from the single ANZCA table rather than being literals, which is the
+// whole point of that change - so they have to be evaluated, not parsed.
+// The terminating semicolon is found at bracket depth 0 and outside strings and
+// comments, so a `;` inside the expression does not truncate it.
+function statementSource(name) {
+  const m = new RegExp('(?:const|var|let)\\s+' + name + '\\s*=').exec(SRC);
+  if (!m) throw new Error(`${name} not found in index.html`);
+  let depth = 0, quote = null, esc = false, line = false, block = false;
+  for (let j = m.index + m[0].length; j < SRC.length; j++) {
+    const c = SRC[j], n = SRC[j + 1];
+    if (line)  { if (c === '\n') line = false; continue; }
+    if (block) { if (c === '*' && n === '/') { block = false; j++; } continue; }
+    if (esc)   { esc = false; continue; }
+    if (quote) {
+      if (c === '\\') { esc = true; continue; }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '/' && n === '/') { line = true; j++; continue; }
+    if (c === '/' && n === '*') { block = true; j++; continue; }
+    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+    if (c === '{' || c === '[' || c === '(') depth++;
+    else if (c === '}' || c === ']' || c === ')') depth--;
+    else if (c === ';' && depth === 0) return SRC.slice(m.index, j + 1);
+  }
+  throw new Error(`unterminated statement for ${name}`);
+}
+
+function evaluateChain(names) {
+  const src = names.map(statementSource).join('\n');
+  const last = names[names.length - 1];
+  // eslint-disable-next-line no-new-func
+  return new Function(src + '\nreturn ' + last + ';')();
+}
+
 const PD_CATS      = extract('PD_CATS');
 const DRUG_CATS    = extract('DRUG_CATS');
 const ABX_DATA     = extract('ABX_DATA');
-const OPIOIDS      = extract('OPIOIDS');
-const OMEDD_DRUGS  = (() => {
-  const start = SRC.indexOf('var OMEDD_DRUGS =');
-  const i = SRC.indexOf('[', start);
-  let depth = 0, quote = null, esc = false;
-  for (let j = i; j < SRC.length; j++) {
-    const c = SRC[j];
-    if (esc) { esc = false; continue; }
-    if (c === '\\') { esc = true; continue; }
-    if (quote) { if (c === quote) quote = null; continue; }
-    if (c === "'" || c === '"') { quote = c; continue; }
-    if (c === '[') depth++;
-    else if (c === ']') { depth--; if (depth === 0) return new Function('return (' + SRC.slice(i, j + 1) + ');')(); }
-  }
-  throw new Error('OMEDD_DRUGS not found');
-})();
+const ANZCA_OPIOIDS = extract('ANZCA_OPIOIDS');
+const OPIOIDS      = evaluateChain(['ANZCA_OPIOIDS', 'OPIOIDS']);
+const OMEDD_DRUGS  = evaluateChain(['ANZCA_OPIOIDS', 'OMEDD_DRUGS']);
 
 // Flatten the paediatric categories to a single list for scanning.
 const PD_DRUGS = Object.entries(PD_CATS).flatMap(([cat, drugs]) =>
@@ -71,4 +99,5 @@ const ADULT_DRUGS = Object.entries(DRUG_CATS)
   .filter(([, v]) => v !== 'abx')
   .flatMap(([cat, drugs]) => drugs.map(d => Object.assign({ _cat: cat }, d)));
 
-module.exports = { SRC, PD_CATS, PD_DRUGS, DRUG_CATS, ADULT_DRUGS, ABX_DATA, OPIOIDS, OMEDD_DRUGS };
+module.exports = { SRC, PD_CATS, PD_DRUGS, DRUG_CATS, ADULT_DRUGS, ABX_DATA,
+                   ANZCA_OPIOIDS, OPIOIDS, OMEDD_DRUGS };

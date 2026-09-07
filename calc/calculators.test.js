@@ -262,14 +262,12 @@ test('maintenance is continuous across both band boundaries', () => {
   eq(C.maintenanceFluid(20 - e), C.maintenanceFluid(20), 1e-6);
 });
 
-test('CURRENT: a maxDose field is honoured; a note is not (F3)', () => {
+// F2 and F3 are data defects; they are asserted against the real index.html in
+// data.test.js. What is tested here is only that the capping mechanism works.
+test('applyMaxDose honours a field and ignores a prose-only maximum', () => {
   eq(C.applyMaxDose({ lo: 300, hi: 300 }, 200).hi, 200, 0, 'field present:');
   eq(C.applyMaxDose({ lo: 300, hi: 300 }, null).hi, 300, 0, 'note-only max ignored:');
 });
-pending('F3', 'suxamethonium IV should cap at its stated 150 mg', () => {
-  eq(C.applyMaxDose(C.calcDose('2', 100), null).hi, 150, 0);
-});
-
 test('paracetamol IV weight bands and the 1 g cap', () => {
   eq(C.paracetamolIVDose(4),  30,   0, '<5 kg at 7.5 mg/kg:');
   eq(C.paracetamolIVDose(8),  80,   0, '5-10 kg at 10 mg/kg:');
@@ -336,37 +334,65 @@ test('Cole\'s formulae still correct within their valid range', () => {
 
 /* ================================= opioids =============================== */
 
-test('opioid factors that both tools agree on and that match ANZCA', () => {
-  eq(10 / C.OPIOID_EQUIV.po_oxycodone, 1.5, 0.02);
-  eq(C.OMEDD_FACTORS['Oral oxycodone'], 1.5);
-  eq(10 / C.OPIOID_EQUIV.po_hydromorphone, 5);
-  eq(C.OMEDD_FACTORS['Oral hydromorphone'], 5);
-  eq(10 / C.OPIOID_EQUIV.iv_morphine, 3, 0.05);
-  eq(C.OMEDD_FACTORS['IV/SC morphine'], 3);
+// ANZCA FPM PS01(PM) Appendix 2, October 2025 — transcribed from the PDF.
+const ANZCA_PRIMARY = {
+  'Oral Morphine': 1, 'Oral Oxycodone': 1.5, 'Oral Hydromorphone': 5,
+  'Oral Codeine': 0.13, 'Oral Dextropropoxyphene': 0.1, 'Oral Tramadol': 0.2,
+  'Oral Tapentadol': 0.3, 'Sublingual Buprenorphine': 40, 'Rectal Oxycodone': 1.5,
+  'Transdermal Buprenorphine': 2, 'Transdermal Fentanyl': 3,
+  'Parenteral Morphine': 3, 'Parenteral Oxycodone': 3, 'Parenteral Hydromorphone': 15,
+  'Parenteral Codeine': 0.25, 'Parenteral Pethidine': 0.4, 'Parenteral Fentanyl': 0.2,
+  'Parenteral Sufentanil': 2
+};
+
+test('FIXED F6/F28/F29: every factor matches the ANZCA primary table', () => {
+  Object.keys(ANZCA_PRIMARY).forEach(name => {
+    eq(C.OMEDD_FACTORS[name], ANZCA_PRIMARY[name], 1e-9, `${name}:`);
+  });
 });
 
-test('CURRENT: the two tools disagree on IV fentanyl and IV oxycodone (F6)', () => {
-  eq(10 / C.OPIOID_EQUIV.iv_fentanyl, 0.2, 0.001, 'conversion tab:');
-  eq(C.OMEDD_FACTORS['IV/SC fentanyl'], 0.1, 0, 'oMEDD tab:');
-  eq(C.omeddTotal([{ drug: 'IV/SC fentanyl', dose: 600 }]), 60, 0);
-  eq(C.toOralMorphine('iv_fentanyl', 600), 120, 0);
-});
-pending('F6', 'both tools should use one factor for IV fentanyl', () => {
-  eq(10 / C.OPIOID_EQUIV.iv_fentanyl, C.OMEDD_FACTORS['IV/SC fentanyl'], 0.001);
+test('FIXED F6: the table is complete — no preparation is missing or extra', () => {
+  const got = Object.keys(C.OMEDD_FACTORS).sort();
+  const want = Object.keys(ANZCA_PRIMARY).sort();
+  is(got.length, want.length, 'entry count:');
+  want.forEach(n => { if (!got.includes(n)) throw new Error(`missing: ${n}`); });
 });
 
-test('CURRENT: tramadol and tapentadol factors (F28/F29, provisional)', () => {
-  eq(C.OMEDD_FACTORS['Oral tramadol'], 0.1);
-  eq(C.OMEDD_FACTORS['Oral tapentadol'], 0.4);
-});
-pending('F28/F29', 'ANZCA gives tramadol 0.2 and tapentadol 0.3 — CONFIRM against PS01(PM) App 2 first', () => {
-  eq(C.OMEDD_FACTORS['Oral tramadol'], 0.2);
-  eq(C.OMEDD_FACTORS['Oral tapentadol'], 0.3);
+test('FIXED F6: both tools derive from the same table, so they cannot diverge', () => {
+  C.ANZCA_OPIOIDS.forEach(o => {
+    eq(10 / C.OPIOID_EQUIV[o.key], o.factor, 1e-9, `${o.route} ${o.drug} conversion tab:`);
+    eq(C.OMEDD_FACTORS[o.route + ' ' + o.drug], o.factor, 1e-9, `${o.route} ${o.drug} oMEDD tab:`);
+  });
 });
 
-test('CURRENT: methadone is absent from oMEDD and contributes zero (F8)', () => {
-  is(C.OMEDD_FACTORS['Oral methadone'], undefined);
-  eq(C.omeddTotal([{ drug: 'Oral methadone', dose: 40 }]), 0, 0, 'silently ignored:');
+test('FIXED F6: parenteral fentanyl is 0.2 — the value ANZCA actually publishes', () => {
+  eq(C.OMEDD_FACTORS['Parenteral Fentanyl'], 0.2, 0, 'oMEDD tab was 0.1:');
+  eq(10 / C.OPIOID_EQUIV.iv_fentanyl, 0.2, 1e-9, 'conversion tab was already right:');
+  eq(C.omeddTotal([{ drug: 'Parenteral Fentanyl', dose: 600 }]), 120, 0, '600 mcg/day, was 60 on this tab:');
+  eq(C.toOralMorphine('iv_fentanyl', 600), 120, 0, 'and the conversion tab agrees:');
+});
+
+test('FIXED F28/F29: tramadol 0.2 and tapentadol 0.3', () => {
+  eq(C.OMEDD_FACTORS['Oral Tramadol'], 0.2, 0, 'was 0.1 in both tools:');
+  eq(C.OMEDD_FACTORS['Oral Tapentadol'], 0.3, 0, 'was 0.4 in both tools:');
+  eq(C.omeddTotal([{ drug: 'Oral Tramadol', dose: 400 }]), 80, 0, '400 mg/day, was scored 40:');
+});
+
+test('FIXED F6: the patches ANZCA lists are both present and correct', () => {
+  eq(C.OMEDD_FACTORS['Transdermal Fentanyl'], 3, 0, 'was 2.4:');
+  eq(C.OMEDD_FACTORS['Transdermal Buprenorphine'], 2, 0, 'was 2.4:');
+  eq(C.omeddTotal([{ drug: 'Transdermal Fentanyl', dose: 75 }]), 225, 0, '75 mcg/hr patch, was 180:');
+});
+
+test('methadone is still absent, as ANZCA intends', () => {
+  is(C.OMEDD_FACTORS['Oral Methadone'], undefined);
+  eq(C.omeddTotal([{ drug: 'Oral Methadone', dose: 40 }]), 0, 0);
+});
+
+test('the take-home naloxone threshold is ANZCA\'s 40 mg/day', () => {
+  is(C.THN_THRESHOLD_OMEDD, 40);
+  eq(C.omeddTotal([{ drug: 'Oral Oxycodone', dose: 40 }]), 60, 0,
+     'ANZCA worked example: oxycodone 40 mg/day x 1.5 = 60 mg oMEDD:');
 });
 
 test('FIXED F16: methadone conversion round-trips exactly', () => {
@@ -420,11 +446,6 @@ test('CURRENT: adenosine carries the flow-arrest dose (F2)', () => {
   eq(C.adultBolus(0.3, 0.5, 'mg/kg', 70, null).lo, 21, 0);
   eq(C.adultBolus(0.3, 0.5, 'mg/kg', 70, null).hi, 35, 0);
 });
-pending('F2', 'adenosine should be the 6 mg / 12 mg SVT dose', () => {
-  const d = C.adultBolus(0.3, 0.5, 'mg/kg', 70, null);
-  if (d && d.hi > 12) throw new Error(`${d.hi} mg — ANZCOR gives 6 then 12 mg`);
-});
-
 test('antibiotic dosing and the cefazolin weight band', () => {
   eq(C.abxDose('30 mg/kg', 80, null, 'cefazolin').mg, 2000, 0, 'capped at 2 g under 100 kg:');
   eq(C.abxDose('30 mg/kg', 110, null, 'cefazolin').mg, 3000, 0, '3 g at or above 100 kg:');

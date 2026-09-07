@@ -294,22 +294,40 @@
 
   /* ----------------------------------------------------------------- opioids */
 
-  // Amount of each opioid equivalent to 10 mg PO morphine (conversion tab).
-  var OPIOID_EQUIV = {
-    po_morphine: 10, po_oxycodone: 6.6, po_hydromorphone: 2, po_codeine: 75,
-    po_tramadol: 100, po_tapentadol: 25, iv_morphine: 3.3, iv_oxycodone: 3.3,
-    iv_fentanyl: 50
-  };
+  /* ANZCA FPM PS01(PM) Appendix 2, October 2025. One table; both the opioid
+     conversion tab and the oMEDD tab derive from it, so they cannot diverge.
+     `factor` is mg of oral morphine per unit per day; the conversion tab's
+     "equivalent to 10 mg PO morphine" column is 10 / factor.
+     Methadone is deliberately absent - ANZCA excludes it, transmucosal fentanyl
+     and neuraxial opioids because their pharmacokinetics are variable. */
+  var ANZCA_OPIOIDS = [
+    { route:'Oral',        drug:'Morphine',           unit:'mg',     factor:1,    key:'po_morphine'      },
+    { route:'Oral',        drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'po_oxycodone'     },
+    { route:'Oral',        drug:'Hydromorphone',      unit:'mg',     factor:5,    key:'po_hydromorphone' },
+    { route:'Oral',        drug:'Codeine',            unit:'mg',     factor:0.13, key:'po_codeine'       },
+    { route:'Oral',        drug:'Dextropropoxyphene', unit:'mg',     factor:0.1,  key:'po_dextroprop'    },
+    { route:'Oral',        drug:'Tramadol',           unit:'mg',     factor:0.2,  key:'po_tramadol'      },
+    { route:'Oral',        drug:'Tapentadol',         unit:'mg',     factor:0.3,  key:'po_tapentadol'    },
+    { route:'Sublingual',  drug:'Buprenorphine',      unit:'mg',     factor:40,   key:'sl_buprenorphine' },
+    { route:'Rectal',      drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'pr_oxycodone'     },
+    { route:'Transdermal', drug:'Buprenorphine',      unit:'mcg/hr', factor:2,    key:'td_buprenorphine' },
+    { route:'Transdermal', drug:'Fentanyl',           unit:'mcg/hr', factor:3,    key:'td_fentanyl'      },
+    { route:'Parenteral',  drug:'Morphine',           unit:'mg',     factor:3,    key:'iv_morphine'      },
+    { route:'Parenteral',  drug:'Oxycodone',          unit:'mg',     factor:3,    key:'iv_oxycodone'     },
+    { route:'Parenteral',  drug:'Hydromorphone',      unit:'mg',     factor:15,   key:'iv_hydromorphone' },
+    { route:'Parenteral',  drug:'Codeine',            unit:'mg',     factor:0.25, key:'iv_codeine'       },
+    { route:'Parenteral',  drug:'Pethidine',          unit:'mg',     factor:0.4,  key:'iv_pethidine'     },
+    { route:'Parenteral',  drug:'Fentanyl',           unit:'mcg',    factor:0.2,  key:'iv_fentanyl'      },
+    { route:'Parenteral',  drug:'Sufentanil',         unit:'mcg',    factor:2,    key:'iv_sufentanil'    }
+  ];
+  var THN_THRESHOLD_OMEDD = 40;   // ANZCA: take-home naloxone at or above this
 
-  // oMEDD tab factors. F6: these disagree with OPIOID_EQUIV for codeine,
-  // IV oxycodone and IV fentanyl. F28/F29 (provisional): tramadol and tapentadol
-  // disagree with ANZCA. F7: the on-screen footnote says buprenorphine x 25.
-  var OMEDD_FACTORS = {
-    'Oral morphine': 1, 'Oral oxycodone': 1.5, 'Oral hydromorphone': 5,
-    'Oral codeine': 0.15, 'Oral tramadol': 0.1, 'Oral tapentadol': 0.4,
-    'IV/SC morphine': 3, 'IV/SC hydromorphone': 15, 'IV/SC fentanyl': 0.1,
-    'IV/SC oxycodone': 2, 'Buprenorphine patch': 2.4, 'Fentanyl patch': 2.4
-  };
+  var OPIOID_EQUIV = {};
+  var OMEDD_FACTORS = {};
+  ANZCA_OPIOIDS.forEach(function (o) {
+    OPIOID_EQUIV[o.key] = 10 / o.factor;
+    OMEDD_FACTORS[o.route + ' ' + o.drug] = o.factor;
+  });
 
   function toOralMorphine(opioidKey, dose) {
     var e = OPIOID_EQUIV[opioidKey];
@@ -409,6 +427,7 @@
     airwayAgeFallback: airwayAgeFallback, airwaySizes: airwaySizes, lmaSize: lmaSize,
     LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
     cumulativeToxicFraction: cumulativeToxicFraction,
+    ANZCA_OPIOIDS: ANZCA_OPIOIDS, THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,
     OPIOID_EQUIV: OPIOID_EQUIV, OMEDD_FACTORS: OMEDD_FACTORS,
     toOralMorphine: toOralMorphine, fromOralMorphine: fromOralMorphine,
     methadoneToOMEDD: methadoneToOMEDD, omeddToMethadone: omeddToMethadone,

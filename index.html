@@ -1719,9 +1719,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px">Total oMEDD</div>
       <div id="omedd-total" style="font-size:22px;font-weight:700;color:var(--text)">0 mg/day</div>
       <div id="omedd-warning" style="font-size:11px;color:var(--red);margin-top:4px;display:none"></div>
+      <div id="omedd-thn" style="font-size:11px;color:#93c5fd;margin-top:6px;display:none;padding:6px 8px;background:#0f213d;border:1px solid #1e40af;border-radius:4px"></div>
     </div>
     <div style="margin-top:10px;padding:8px 10px;background:#2d1f0f;border:1px solid #7f5f1d;border-radius:5px;font-size:11px;color:#fcd34d"><strong>Methadone is not included.</strong> ANZCA excludes methadone, transmucosal fentanyl and neuraxial opioids from oMEDD because their pharmacokinetics are complex and variable. If the patient takes any of these, this total understates their exposure &mdash; use the Ripamonti table on the Opioid Conversion tab and seek specialist input.<br>Conversion is a guide only: giving a calculated &lsquo;equivalent&rsquo; dose of a replacement opioid may cause overdose. Reduce by 25&ndash;50% when rotating.</div>
-    <div style="margin-top:10px;font-size:10px;color:var(--text3)">Conversion factors: Oral morphine 1 • Oral oxycodone 1.5 • Oral hydromorphone 5 • Oral codeine 0.15 • Oral tramadol 0.1 • IV/SC morphine 3 • IV/SC hydromorphone 15 • IV/SC fentanyl (mcg) × 0.1 • IV/SC oxycodone × 2 • Oral tapentadol × 0.4 • Buprenorphine patch (mcg/hr) × 2.4 • Fentanyl patch (mcg/hr) × 2.4</div>
+    <div style="margin-top:10px;font-size:10px;color:var(--text3);line-height:1.7" id="omedd-factors"></div>
   </div>
 
     
@@ -2998,8 +2999,8 @@ const DRUG_CATS = {
     { name:'Fibrinogen concentrate', conc:'',             bolusLo:70,   bolusHi:70,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Reconstitute and give over 5 min. Target fibrinogen >2 g/L in major haemorrhage' },
     { name:'Fresh frozen plasma',    conc:'',             bolusLo:10,   bolusHi:15,   bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Coagulopathy, massive transfusion. Takes 20-30 min to thaw' },
     { name:'Heparin',                conc:'',             bolusLo:50,   bolusHi:100,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'' },
-    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
-    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given. Max 50 mg. Infuse slowly - risk of hypotension/bronchospasm' },
+    { name:'PCC (Octaplex/Beriplex)',conc:'',             bolusLo:25,   bolusHi:50,   bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              maxDose:3000, notes:'Urgent warfarin reversal, major haemorrhage. Dose guided by INR and weight. Max 3000 units' },
+    { name:'Protamine',              conc:'10 mg/mL',     bolusLo:1,    bolusHi:1,    bolusUnit:'mg/100u heparin(fixed)', infLo:null, infHi:null, infUnit:'', notes:'1 mg per 100 units heparin given, to a ceiling of 50 mg per dose. Not weight-based - calculate from the heparin actually given. Infuse slowly - risk of hypotension/bronchospasm' },
     { name:'Tranexamic acid',        conc:'100 mg/mL',    bolusLo:15,   bolusHi:30,   bolusUnit:'mg/kg',      infLo:1,    infHi:5,    infUnit:'mg/kg/hr',      maxDose:2000, notes:'Max 2 g load. Load 1 g over 10 min then 1 g over 8 hr (CRASH-2). Major haemorrhage, obstetrics, cardiac surgery' },
     { name:'Vitamin K',              conc:'10 mg/mL',     bolusLo:5,    bolusHi:10,   bolusUnit:'mg (fixed)', infLo:null, infHi:null, infUnit:'',              notes:'Warfarin reversal. Onset 6-12 hr IV. Give slowly over 20-60 min' },
   ],
@@ -3343,18 +3344,61 @@ function methadoneToOMEDD(methadoneDose) {
 }
 
 // All values = equivalent mg (or mcg for fentanyl) to 10 mg PO morphine
-const OPIOIDS = [
-  { key:'po_morphine',      label:'PO Morphine',       equiv:10,   unit:'mg',  isFentanyl:false },
-  { key:'po_oxycodone',     label:'PO Oxycodone',      equiv:6.6,  unit:'mg',  isFentanyl:false },
-  { key:'po_hydromorphone', label:'PO Hydromorphone',  equiv:2,    unit:'mg',  isFentanyl:false },
-  { key:'po_codeine',       label:'PO Codeine',        equiv:75,   unit:'mg',  isFentanyl:false },
-  { key:'po_tramadol',      label:'PO Tramadol',       equiv:100,  unit:'mg',  isFentanyl:false },
-  { key:'po_tapentadol',    label:'PO Tapentadol',     equiv:25,   unit:'mg',  isFentanyl:false },
-  { key:'iv_morphine',      label:'IV Morphine',       equiv:3.3,  unit:'mg',  isFentanyl:false },
-  { key:'iv_oxycodone',     label:'IV Oxycodone',      equiv:3.3,  unit:'mg',  isFentanyl:false },
-  { key:'iv_fentanyl',      label:'IV Fentanyl',       equiv:50,   unit:'mcg', isFentanyl:true  },
-  { key:'po_methadone',     label:'PO Methadone',      equiv:null, unit:'mg',  isFentanyl:false, isMethadone:true, warning:'Caution — seek expert advice' },
+/* ---------------------------------------------------------------------------
+   ANZCA Faculty of Pain Medicine, PS01(PM) Appendix 2 — Opioid Dose Equivalence
+   Calculation Table, October 2025.
+
+   ONE table. Both the Opioid Conversion tab and the oMEDD tab derive from it,
+   so they cannot drift apart again. `factor` is mg of oral morphine per unit of
+   the drug per day; the conversion tab's "equivalent to 10 mg PO morphine"
+   column is simply 10 / factor.
+
+   Methadone is deliberately absent: ANZCA excludes methadone, transmucosal
+   fentanyl and neuraxial opioids because their pharmacokinetics are complex and
+   variable. Methadone is handled separately by the Ripamonti method.
+--------------------------------------------------------------------------- */
+const ANZCA_OPIOIDS = [
+  // route,        name,               unit,      factor, conversion-tab key/label
+  { route:'Oral',        drug:'Morphine',           unit:'mg',     factor:1,    key:'po_morphine'      },
+  { route:'Oral',        drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'po_oxycodone'     },
+  { route:'Oral',        drug:'Hydromorphone',      unit:'mg',     factor:5,    key:'po_hydromorphone' },
+  { route:'Oral',        drug:'Codeine',            unit:'mg',     factor:0.13, key:'po_codeine'       },
+  { route:'Oral',        drug:'Dextropropoxyphene', unit:'mg',     factor:0.1,  key:'po_dextroprop'    },
+  { route:'Oral',        drug:'Tramadol',           unit:'mg',     factor:0.2,  key:'po_tramadol'      },
+  { route:'Oral',        drug:'Tapentadol',         unit:'mg',     factor:0.3,  key:'po_tapentadol'    },
+  { route:'Sublingual',  drug:'Buprenorphine',      unit:'mg',     factor:40,   key:'sl_buprenorphine' },
+  { route:'Rectal',      drug:'Oxycodone',          unit:'mg',     factor:1.5,  key:'pr_oxycodone'     },
+  { route:'Transdermal', drug:'Buprenorphine',      unit:'mcg/hr', factor:2,    key:'td_buprenorphine' },
+  { route:'Transdermal', drug:'Fentanyl',           unit:'mcg/hr', factor:3,    key:'td_fentanyl'      },
+  { route:'Parenteral',  drug:'Morphine',           unit:'mg',     factor:3,    key:'iv_morphine'      },
+  { route:'Parenteral',  drug:'Oxycodone',          unit:'mg',     factor:3,    key:'iv_oxycodone'     },
+  { route:'Parenteral',  drug:'Hydromorphone',      unit:'mg',     factor:15,   key:'iv_hydromorphone' },
+  { route:'Parenteral',  drug:'Codeine',            unit:'mg',     factor:0.25, key:'iv_codeine'       },
+  { route:'Parenteral',  drug:'Pethidine',          unit:'mg',     factor:0.4,  key:'iv_pethidine'     },
+  { route:'Parenteral',  drug:'Fentanyl',           unit:'mcg',    factor:0.2,  key:'iv_fentanyl'      },
+  { route:'Parenteral',  drug:'Sufentanil',         unit:'mcg',    factor:2,    key:'iv_sufentanil'    },
 ];
+const ANZCA_SOURCE = 'ANZCA FPM PS01(PM) Appendix 2, October 2025';
+
+// ANZCA recommends take-home naloxone and education at or above this oMEDD.
+const THN_THRESHOLD_OMEDD = 40;
+
+function anzcaFactor(key) {
+  const e = ANZCA_OPIOIDS.find(o => o.key === key);
+  return e ? e.factor : null;
+}
+
+// Conversion tab: derived, never stored separately.
+const OPIOIDS = ANZCA_OPIOIDS.map(o => ({
+  key:   o.key,
+  label: o.route + ' ' + o.drug,
+  equiv: 10 / o.factor,
+  unit:  o.unit,
+  isFentanyl: o.drug === 'Fentanyl'
+})).concat([
+  { key:'po_methadone', label:'Oral Methadone', equiv:null, unit:'mg', isMethadone:true,
+    warning:'Excluded from ANZCA oMEDD — Ripamonti method, seek expert advice' }
+]);
 
 function calcOpioid() {
   const refKey  = document.getElementById('oc-ref').value;
@@ -3486,20 +3530,10 @@ function tribOpen() {
    oMEDD CALCULATOR
 ======================================= */
 var omeddRowId = 0;
-var OMEDD_DRUGS = [
-  {name:'Oral morphine',       unit:'mg',     factor:1},
-  {name:'Oral oxycodone',      unit:'mg',     factor:1.5},
-  {name:'Oral hydromorphone',  unit:'mg',     factor:5},
-  {name:'Oral codeine',        unit:'mg',     factor:0.15},
-  {name:'Oral tramadol',       unit:'mg',     factor:0.1},
-  {name:'Oral tapentadol',     unit:'mg',     factor:0.4},
-  {name:'IV/SC morphine',      unit:'mg',     factor:3},
-  {name:'IV/SC hydromorphone', unit:'mg',     factor:15},
-  {name:'IV/SC fentanyl',      unit:'mcg',    factor:0.1},
-  {name:'IV/SC oxycodone',     unit:'mg',     factor:2},
-  {name:'Buprenorphine patch', unit:'mcg/hr', factor:2.4},
-  {name:'Fentanyl patch',      unit:'mcg/hr', factor:2.4},
-];
+// oMEDD tab: the same ANZCA table, same factors.
+var OMEDD_DRUGS = ANZCA_OPIOIDS.map(function (o) {
+  return { name: o.route + ' ' + o.drug, unit: o.unit, factor: o.factor };
+});
 
 function addOmeddRow() {
   omeddRowId++;
@@ -3532,6 +3566,22 @@ function removeOmeddRow(id) {
   calcOmedd();
 }
 
+// Rendered from ANZCA_OPIOIDS so the displayed factors are the ones actually
+// used. The hand-written version had drifted: it stated buprenorphine patch
+// x 25 where the code used 2.4, and omitted two drugs entirely.
+function renderOmeddFactors() {
+  var el = document.getElementById('omedd-factors');
+  if (!el) return;
+  var byRoute = {};
+  ANZCA_OPIOIDS.forEach(function (o) {
+    (byRoute[o.route] = byRoute[o.route] || []).push(o.drug + ' (' + o.unit + ') \u00d7 ' + o.factor);
+  });
+  el.innerHTML = '<strong>Conversion factors &mdash; ' + ANZCA_SOURCE + '</strong><br>' +
+    Object.keys(byRoute).map(function (r) {
+      return '<span style="color:var(--text2)">' + r + ':</span> ' + byRoute[r].join(' &bull; ');
+    }).join('<br>');
+}
+
 function calcOmedd() {
   var total = 0;
   var rows = document.getElementById('omedd-rows').children;
@@ -3556,6 +3606,14 @@ function calcOmedd() {
     total += eq;
   }
   document.getElementById('omedd-total').textContent = total.toFixed(1) + ' mg/day';
+
+  // ANZCA recommends take-home naloxone and education at oMEDD >= 40 mg/day.
+  var thn = document.getElementById('omedd-thn');
+  if (thn) {
+    thn.style.display = total >= THN_THRESHOLD_OMEDD ? 'block' : 'none';
+    thn.textContent = 'oMEDD \u2265 ' + THN_THRESHOLD_OMEDD +
+      ' mg/day \u2014 ANZCA recommends take-home naloxone and patient education.';
+  }
   // Ripamonti methadone equivalent
 
   var warn = document.getElementById('omedd-warning');
@@ -3565,10 +3623,14 @@ function calcOmedd() {
 }
 
 // Start with one row
-document.addEventListener('DOMContentLoaded', function() {
+// Called directly, like installInputGuards(): this script is the last thing in
+// <body>, so the elements already exist, and deferring left the oMEDD tab empty
+// for the window between parse and DOMContentLoaded.
+(function initOmedd() {
   var el = document.getElementById('omedd-rows');
-  if (el) addOmeddRow();
-});
+  if (el && !el.children.length) addOmeddRow();
+  renderOmeddFactors();
+})();
 
 /* =======================================
    POCUS SUB-TAB NAVIGATION

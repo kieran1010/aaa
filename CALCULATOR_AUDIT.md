@@ -3,7 +3,8 @@
 **Audited:** commit `4a1a59d`, single-file application (`index.html`, 4067 lines)
 **Date:** 5 September 2026
 **Scope:** every interactive calculator plus the static dose content the calculators are checked against
-**Status:** **27 of 30 findings fixed** (Addenda C–F). **F27 retracted** (Addendum B). Only **F6, F28 and F29** remain, all held deliberately pending a clinical decision and a primary-source check — see F.9.
+**Status:** **All 30 findings closed** — 29 fixed (Addenda C–G), F27 retracted (Addendum B). No pending tests remain.
+**Note:** Addendum G.1 corrects an error of mine — I twice reported ANZCA's parenteral fentanyl factor as 0.3; it is **0.2**.
 **Standard applied:** ANZCA / APLS, with ANZCOR for resuscitation and AAGBI where ANZCA is silent
 **Addendum A** resolves the clinical values against ANZCA. **Addendum B retracts F27** and cross-checks the paediatric formulae against UK, Australian and US sources. Read both before acting on any clinical value.
 
@@ -64,7 +65,7 @@ examples are in §9.
 | **F3** | ~~C1~~ **FIXED** | Paed drugs | 14 drugs stated "Max X" in prose that was never enforced. All 14 now carry a `maxDose` field, and a lint test fails if a new one appears. *(Addendum C)* |
 | **F4** | ~~C1~~ **FIXED** | LA max dose | IBW always overrode actual weight, raising the ceiling 36–41 % in underweight adults. Now `min(IBW, TBW)`, and Devine is not evaluated below 152.4 cm. *(Addendum C)* |
 | **F5** | ~~C2~~ **FIXED** | Paed airway | Weight-banded sizing under 1 y (term neonate 3.5 mm at 9.5 cm, was 4.0 mm at 12 cm); weight→age inversion corrected; refused above 12 y. *(Addendum E)* |
-| **F6** | **C2** | Opioids | The conversion tab and the oMEDD tab disagree by **2×** for IV fentanyl and **50 %** for IV oxycodone |
+| **F6** | ~~C2~~ **FIXED** | Opioids | Both tools now derive from one ANZCA PS01(PM) App 2 table; neither stores its own factors. *(Addendum G)* |
 | **F7** | ~~C2~~ **FIXED** | oMEDD | Footnote now lists the factors the code actually uses. *(Addendum E)* |
 | **F8** | ~~C2~~ **FIXED** | oMEDD | The tab now states that methadone is excluded and why, instead of silently scoring it zero. *(Addendum E)* |
 | **F9** | ~~C2~~ **FIXED** | Paed drugs | 4-2-1 is now Holliday-Segar — 85 mL/hr for a 45 kg child, was 180. *(Addendum E)* |
@@ -87,8 +88,8 @@ examples are in §9.
 | **F26** | ~~C4~~ **FIXED** | Paed drugs | IM ketamine now offers 100/50 mg/mL — 1 mL, not 10 mL. *(Addendum F)* |
 | **F30** | ~~C2~~ **FIXED** | Global ↔ paed | **New.** Typing a weight silently wiped an age entered on the paediatric tab, changing the recommended ETT size. Age sync is now two-way and non-destructive. *(Addendum D)* |
 | ~~**F27**~~ | — | Paed weight | ~~Superseded APLS formulae~~ — **WITHDRAWN, see Addendum B.** The app's formulae are current APLS and match at every month 0–12 y. The finding was based on the Best Guess formulae misread as an APLS update. |
-| **F28** | **C2** *(provisional)* | Opioids | Tramadol factor 0.1; ANZCA gives **0.2** — oMEDD under-stated by half in both tools *(Addendum A; provisional per B.1)* |
-| **F29** | **C3** *(provisional)* | Opioids | Tapentadol factor 0.4; ANZCA gives **0.3** *(Addendum A; provisional per B.1)* |
+| **F28** | ~~C2~~ **FIXED** | Opioids | Tramadol 0.1 → **0.2**, confirmed against the primary table. *(Addendum G)* |
+| **F29** | ~~C3~~ **FIXED** | Opioids | Tapentadol 0.4 → **0.3**, confirmed against the primary table. *(Addendum G)* |
 
 ---
 
@@ -1548,3 +1549,127 @@ offers 100 mg/mL and 50 mg/mL, giving 1 mL.
 Six pending tests across the two suites hold all three. Each fails today by
 design and names its finding, so whichever way you decide, the target behaviour is
 already written down.
+
+---
+
+# Addendum G — The ANZCA table, read from the primary source
+
+**7 September 2026.** The user supplied **ANZCA FPM PS01(PM) Appendix 2, Opioid
+Dose Equivalence Calculation Table, October 2025**. F6, F28 and F29 are now
+resolved against it, and one of my own claims is corrected.
+
+## G.1 Correction: parenteral fentanyl is 0.2, not 0.3
+
+**I reported the ANZCA factor for parenteral fentanyl as 0.3, in Addendum A and
+again when asked directly. The published value is 0.2.**
+
+That means the **Opioid Conversion tab was correct all along** — its 50 mcg ≡ 10 mg
+PO morphine is exactly 0.2 — and only the oMEDD tab (0.1) was wrong. My advice
+that "neither tool is right" was itself wrong; one of them was right.
+
+The 0.3 came from a search summary paraphrasing "fentanyl (IV, PO, IM) conversion
+factor 300", which is a mg-basis figure from a different table, not ANZCA's
+mcg-basis 0.2. This is the same failure mode as the retracted F27 — a number
+lifted from a secondary description of a primary document — and it is the reason
+F28/F29 were held rather than applied. That caution was correct even though the
+specific claim behind it was not.
+
+## G.2 The table as published
+
+| Route | Drug | Unit | Factor |
+|---|---|---|---|
+| Oral | Morphine | mg/day | 1 |
+| Oral | Oxycodone | mg/day | 1.5 |
+| Oral | Hydromorphone | mg/day | 5 |
+| Oral | Codeine | mg/day | 0.13 |
+| Oral | Dextropropoxyphene | mg/day | 0.1 |
+| Oral | Tramadol | mg/day | 0.2 |
+| Oral | Tapentadol | mg/day | 0.3 |
+| Sublingual | Buprenorphine | mg/day | 40 |
+| Rectal | Oxycodone | mg/day | 1.5 |
+| Transdermal | Buprenorphine | mcg/hr | 2 |
+| Transdermal | Fentanyl | mcg/hr | 3 |
+| Parenteral | Morphine | mg/day | 3 |
+| Parenteral | Oxycodone | mg/day | 3 |
+| Parenteral | Hydromorphone | mg/day | 15 |
+| Parenteral | Codeine | mg/day | 0.25 |
+| Parenteral | Pethidine | mg/day | 0.4 |
+| Parenteral | Fentanyl | mcg/day | **0.2** |
+| Parenteral | Sufentanil | mcg/day | 2 |
+
+## G.3 What the app had, scored against it
+
+| Preparation | ANZCA | Conversion tab | oMEDD tab |
+|---|---|---|---|
+| Oral morphine | 1 | ✓ | ✓ |
+| Oral oxycodone | 1.5 | ✓ *(1.515)* | ✓ |
+| Oral hydromorphone | 5 | ✓ | ✓ |
+| Oral codeine | 0.13 | ✓ *(0.133)* | **0.15, +15 %** |
+| Oral tramadol | 0.2 | **0.1, −50 %** | **0.1, −50 %** |
+| Oral tapentadol | 0.3 | **0.4, +33 %** | **0.4, +33 %** |
+| Parenteral morphine | 3 | ✓ | ✓ |
+| Parenteral oxycodone | 3 | ✓ *(3.03)* | **2, −33 %** |
+| Parenteral hydromorphone | 15 | *absent* | ✓ |
+| **Parenteral fentanyl** | **0.2** | **✓** | **0.1, −50 %** |
+| Transdermal fentanyl | 3 | *absent* | **2.4, −20 %** |
+| Transdermal buprenorphine | 2 | *absent* | **2.4, +20 %** |
+
+Six preparations were missing from both tools entirely: oral dextropropoxyphene,
+sublingual buprenorphine, rectal oxycodone, parenteral codeine, parenteral
+pethidine and parenteral sufentanil.
+
+## G.4 The fix — one table, both tools derived from it
+
+`ANZCA_OPIOIDS` is now the single source. The conversion tab's "equivalent to
+10 mg PO morphine" column is computed as `10 / factor`; the oMEDD dropdown is
+built from the same array. **Neither tool stores a factor of its own**, so they
+cannot drift apart again — a test asserts exactly that, and another asserts the
+table matches the published values entry by entry.
+
+All 18 preparations are now offered. Methadone remains deliberately absent, as
+ANZCA excludes it along with transmucosal fentanyl and neuraxial opioids; the
+Ripamonti method on the conversion tab still handles it, with the exclusion
+stated on screen (F8).
+
+**Also added: the take-home naloxone prompt.** The source document states that at
+a calculated oMEDD **≥ 40 mg/day**, take-home naloxone and patient education are
+recommended. The oMEDD tab now says so. The app's existing 100 and 200 mg/day
+warnings are retained above it.
+
+The on-screen factor list is now **generated from the table** rather than written
+by hand — which is what let it drift to "buprenorphine patch × 25" against a coded
+2.4 in the first place — and carries the source and date.
+
+## G.5 What this changes clinically
+
+| Patient | Was | Now |
+|---|---|---|
+| 600 mcg/day parenteral fentanyl | 60 mg *(oMEDD tab)* | **120 mg** |
+| 75 mcg/hr fentanyl patch | 180 mg | **225 mg** |
+| 400 mg/day tramadol | 40 mg | **80 mg** |
+| Oxycodone 40 mg/day *(ANZCA's own worked example)* | 60 mg | 60 mg ✓ |
+
+Every change except tapentadol raises the calculated oMEDD, so the ≥40, ≥100 and
+≥200 mg/day prompts now fire earlier — which is the direction that matters for
+recognising a high-risk patient.
+
+## G.6 F3 completed at the same time
+
+The adult lint still had two rows: **PCC** claimed "Max 3000 units" with no
+`maxDose` (50 units/kg at 90 kg is 4500), now capped. **Protamine**'s ceiling is
+not weight-based, so its note was reworded to say the dose is calculated from the
+heparin actually given rather than leaving a prose maximum the lint reads as
+unenforced.
+
+## G.7 Verification
+
+| | |
+|---|---|
+| Syntax | 2,677 lines parse; all 49 inline handlers resolve |
+| Equivalence | 12,065 checks, 0 mismatches |
+| Logic | 56 passed, 0 failed, **0 pending** |
+| Data | 36 passed, 0 failed, **0 pending** |
+| DOM | 42 passed, 0 failed |
+
+**All 30 findings are now closed** — 29 fixed, F27 retracted. There are no pending
+tests left.

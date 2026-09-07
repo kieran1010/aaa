@@ -296,6 +296,47 @@ test('F23: with no weight entered they still show the 70 kg example', () => {
   if (!/175 mg = 9 vials/.test(p.text('mh-dantrolene-calc'))) throw new Error(p.text('mh-dantrolene-calc'));
 });
 
+test('F6: the oMEDD tab scores fentanyl on the ANZCA factor', () => {
+  const p = page();
+  const sel = p.d.querySelector('#omedd-rows select');
+  const opt = [...sel.options].find(o => o.textContent === 'Parenteral Fentanyl');
+  if (!opt) throw new Error(`Parenteral Fentanyl not offered: ${[...sel.options].map(o => o.textContent).join(', ')}`);
+  sel.value = opt.value;
+  sel.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  p.set(p.d.querySelector('#omedd-rows input').id, 600);
+  is(p.text('omedd-total'), '120.0 mg/day', '600 mcg/day, was scored 60:');
+});
+
+test('F6: the oMEDD tab offers every ANZCA preparation', () => {
+  const p = page();
+  const names = [...p.d.querySelector('#omedd-rows select').options].map(o => o.textContent);
+  ['Transdermal Fentanyl', 'Transdermal Buprenorphine', 'Parenteral Pethidine',
+   'Parenteral Sufentanil', 'Sublingual Buprenorphine', 'Rectal Oxycodone']
+    .forEach(n => { if (!names.includes(n)) throw new Error(`missing: ${n}`); });
+  if (names.some(n => /methadone/i.test(n))) throw new Error('methadone should be excluded');
+});
+
+test('F6: ANZCA take-home naloxone prompt fires at 40 mg oMEDD', () => {
+  const p = page();
+  const inp = p.d.querySelector('#omedd-rows input');
+  const sel = p.d.querySelector('#omedd-rows select');
+  sel.value = [...sel.options].find(o => o.textContent === 'Oral Oxycodone').value;
+  sel.dispatchEvent(new p.W.Event('change', { bubbles: true }));
+  p.set(inp.id, 20);                                   // 20 x 1.5 = 30 mg
+  is(p.d.getElementById('omedd-thn').style.display, 'none', 'below 40 mg:');
+  p.set(inp.id, 40);                                   // 40 x 1.5 = 60 mg
+  is(p.d.getElementById('omedd-thn').style.display, 'block', 'ANZCA worked example, 60 mg oMEDD:');
+  if (!/take-home naloxone/i.test(p.text('omedd-thn'))) throw new Error(p.text('omedd-thn'));
+});
+
+test('F7: the factor footnote is rendered and attributed', () => {
+  const p = page();
+  const t = p.text('omedd-factors');
+  if (!/October 2025/.test(t)) throw new Error(`not attributed: ${t.slice(0, 80)}`);
+  if (!/Fentanyl \(mcg\/hr\) × 3/.test(t)) throw new Error(`patch factor wrong: ${t}`);
+  if (/× 25/.test(t)) throw new Error('the old buprenorphine x 25 text is still there');
+});
+
 test('F16: methadone round-trips through the conversion tab', () => {
   const p = page();
   const sel = p.d.getElementById('oc-ref');
@@ -303,9 +344,9 @@ test('F16: methadone round-trips through the conversion tab', () => {
   sel.dispatchEvent(new p.W.Event('change', { bubbles: true }));
   p.set('oc-dose', 15);
   const rows = [...p.d.querySelectorAll('#opioid-tbody tr')].map(r => r.textContent.replace(/\s+/g, ' ').trim());
-  const morphine = rows.find(r => /^PO Morphine/.test(r));
+  const morphine = rows.find(r => /^Oral Morphine/.test(r));
   if (!/120/.test(morphine)) throw new Error(`15 mg methadone should be 120 mg oMEDD: ${morphine}`);
-  const meth = rows.find(r => /^PO Methadone/.test(r));
+  const meth = rows.find(r => /^Oral Methadone/.test(r));
   if (!/15(\.0)? mg/.test(meth)) throw new Error(`should return 15 mg, not drift: ${meth}`);
 });
 
