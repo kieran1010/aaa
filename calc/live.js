@@ -67,23 +67,26 @@ function withDom(name, extraNames) {
   const src = [].concat(extraNames || []).map(fnSource).concat([fnSource(name)]).join('\n');
   return function (values) {
     const document = makeDom(values);
-    const factory = new Function('document', 'APLS_MAX_MONTHS', 'DEVINE_MIN_HEIGHT_CM',
-      src + '\nreturn ' + name + ';');
-    let APLS_MAX_MONTHS = null, DEVINE_MIN_HEIGHT_CM = null;
-    try { APLS_MAX_MONTHS = constValue('APLS_MAX_MONTHS'); } catch (e) {}
-    try { DEVINE_MIN_HEIGHT_CM = constValue('DEVINE_MIN_HEIGHT_CM'); } catch (e) {}
-    const fn = factory(document, APLS_MAX_MONTHS, DEVINE_MIN_HEIGHT_CM);
+    const factory = new Function('document', ...CONSTS, src + '\nreturn ' + name + ';');
+    const fn = factory(document, ...constEnv());
     const out = fn();
     return { result: out, dom: document._els };
   };
 }
 
 // Pure functions: compile once, call directly.
+// Module-level consts the extracted functions close over. Read from the source
+// so the harness picks up a changed value instead of a stale copy.
+const CONSTS = ['APLS_MAX_MONTHS', 'MAINTENANCE_KEY', 'DEVINE_MIN_HEIGHT_CM',
+                'COLE_MIN_AGE_YEARS', 'AIRWAY_MAX_AGE_YEARS'];
+
+function constEnv() {
+  return CONSTS.map(n => { try { return constValue(n); } catch (e) { return undefined; } });
+}
+
 function pure(name, deps) {
   const src = [].concat(deps || []).map(fnSource).concat([fnSource(name)]).join('\n');
-  let APLS_MAX_MONTHS = null;
-  try { APLS_MAX_MONTHS = constValue('APLS_MAX_MONTHS'); } catch (e) {}
-  return new Function('APLS_MAX_MONTHS', src + '\nreturn ' + name + ';')(APLS_MAX_MONTHS);
+  return new Function(...CONSTS, src + '\nreturn ' + name + ';')(...constEnv());
 }
 
 module.exports = { SRC, fnSource, constValue, pure, withDom, makeDom };

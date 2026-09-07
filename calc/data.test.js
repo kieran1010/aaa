@@ -164,14 +164,18 @@ test('every paediatric concentration is a positive number or explicitly null', (
 
 test('every paediatric drug has a unit and a parseable dose', () => {
   D.PD_DRUGS.forEach(d => {
+    if (!d.unit) throw new Error(`${d.n}: missing unit`);
     if (d.doseStr === 'wt' || d.doseStr === '4-2-1') return;   // special-cased rows
     if (isNaN(parseFloat(d.doseStr))) throw new Error(`${d.n}: unparseable doseStr "${d.doseStr}"`);
     if (!d.unit) throw new Error(`${d.n}: missing unit`);
   });
 });
 
-test('CURRENT: the maintenance row has no unit (F9)', () => {
-  is(D.PD_DRUGS.find(d => d.n === 'Maintenance').unit, '');
+test('FIXED F9: the maintenance row carries a unit', () => {
+  const m = D.PD_DRUGS.find(d => d.n === 'Maintenance');
+  is(m.unit, 'mL/hr', 'was empty, so the rate rendered as a bare number:');
+  is(m.doseStr, '4-2-1');
+  if (!/Holliday-Segar/.test(m.note)) throw new Error('note should name the rule');
 });
 
 test('antibiotic maxima are all present and positive', () => {

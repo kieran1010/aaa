@@ -121,6 +121,62 @@ test('airway sizing is stable when a weight is added to a known age', () => {
   is(p.row(/ETT uncuffed/), before, 'tube size changed when only a weight was added:');
 });
 
+/* ------------------------------ F5: airway ------------------------------- */
+
+test('F5: a term neonate is sized by weight, not by Cole', () => {
+  const p = page().set('pd-mo', 0).set('pd-wt', 3.5).cat('Airway');
+  const ett = p.row(/ETT uncuffed/), lip = p.row(/lip/);
+  if (!/3\.5 mm/.test(ett)) throw new Error(`expected 3.5 mm, got: ${ett}`);
+  if (!/9\.5 cm/.test(lip)) throw new Error(`expected 9.5 cm, got: ${lip}`);
+});
+
+test('F5: an infant with only an age is sized from the APLS weight', () => {
+  // 6 months -> APLS 7 kg -> the >3 kg band, depth 7 + 6 = 13 cm.
+  const p = page().set('pd-mo', 6).cat('Airway');
+  if (!/3\.5 mm/.test(p.row(/ETT uncuffed/))) throw new Error(p.row(/ETT uncuffed/));
+  if (!/13 cm/.test(p.row(/lip/)))             throw new Error(p.row(/lip/));
+  if (!/not valid under 1 year/i.test(p.text('pd-out'))) throw new Error('basis note missing');
+});
+
+test('F5: 0 months is a known age, not an absent one', () => {
+  // Regression: ageKnown used to be (yr > 0 || mo > 0), so a term neonate
+  // entered as 0y 0m fell through to estimating age from weight and was
+  // refused outright.
+  const p = page().set('pd-yr', 0).set('pd-mo', 0).set('pd-wt', 3.5).cat('Airway');
+  if (!/3\.5 mm/.test(p.row(/ETT uncuffed/) || '')) throw new Error(`got: ${p.text('pd-out').slice(0, 90)}`);
+  if (!/9\.5 cm/.test(p.row(/lip/) || ''))          throw new Error(p.row(/lip/));
+});
+
+test('F5: Cole still applies from 1 year', () => {
+  const p = page().set('pd-yr', 8).cat('Airway');
+  if (!/6 mm/.test(p.row(/ETT uncuffed/))) throw new Error(p.row(/ETT uncuffed/));
+  if (!/16 cm/.test(p.row(/lip/)))         throw new Error(p.row(/lip/));
+});
+
+test('F5: 30 kg with no age is read as ~7.7y, not 11y', () => {
+  const p = page().set('pd-wt', 30).cat('Airway');
+  const ett = p.row(/ETT uncuffed/);
+  if (!/6 mm/.test(ett)) throw new Error(`expected 6 mm (was 7.0 mm), got: ${ett}`);
+  if (!/estimated from weight/i.test(p.text('pd-out'))) throw new Error('basis note missing');
+});
+
+test('F5: airway sizing is refused above 12 years', () => {
+  const p = page().set('pd-yr', 40).set('pd-wt', 80).cat('Airway');
+  if (!/over 12 years/i.test(p.text('pd-out'))) throw new Error(`got: ${p.text('pd-out')}`);
+});
+
+/* ------------------------------ F9: 4-2-1 -------------------------------- */
+
+test('F9: maintenance fluid follows Holliday-Segar and carries a unit', () => {
+  [[10, '40'], [20, '60'], [30, '70'], [45, '85']].forEach(([wt, want]) => {
+    const p = page().set('pd-wt', wt).cat('Fluids');
+    const r = p.row(/^Maintenance/);
+    if (!new RegExp('\\b' + want + ' mL/hr').test(r)) {
+      throw new Error(`${wt} kg: expected ${want} mL/hr, got: ${r}`);
+    }
+  });
+});
+
 /* --------------------------- the Tier 1 fixes ---------------------------- */
 
 test('F1: an adult age is refused on the paediatric tab', () => {

@@ -2343,14 +2343,27 @@ const PD_CATS = {
   'Fluids': [
     { n: 'Albumin 4%',              doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '4%', mgml: null }], note: 'Colloid resuscitation' },
     { n: 'Fluid bolus',             doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '0.9% NaCl / Plasmalyte', mgml: null }], note: 'Sepsis: up to 60 mL/kg. Reassess after each bolus' },
-    { n: 'Maintenance',             doseStr: '4-2-1',unit: '',       route: 'iv',   concs: [{ c: '-', mgml: null }], note: '4 mL/kg/hr for first 10 kg + 2 for next 10 + 1 thereafter' },
+    { n: 'Maintenance',             doseStr: '4-2-1',unit: 'mL/hr',  route: 'iv',   concs: [{ c: '-', mgml: null }], note: 'Holliday-Segar: 4 mL/kg/hr for the first 10 kg + 2 for the next 10 + 1 thereafter' },
     { n: 'pRBC',                    doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: 'pRBC', mgml: null }], note: 'Raises Hb ~10 g/L per 5 mL/kg' },
   ],
 };
 
 
+// Holliday-Segar: 4 mL/kg/hr for the first 10 kg, 2 for the next 10, 1 beyond.
+// The '4-2-1' row previously fell through parseDoseRange (which guarded the
+// string '4/2/1', not '4-2-1') and produced a flat 4 mL/kg/hr - 180 mL/hr for a
+// 45 kg child instead of 85, rendered with no unit.
+const MAINTENANCE_KEY = '4-2-1';
+
+function maintenanceFluid(wt) {
+  if (!wt || wt <= 0) return null;
+  if (wt <= 10) return 4 * wt;
+  if (wt <= 20) return 40 + 2 * (wt - 10);
+  return 60 + (wt - 20);
+}
+
 function parseDoseRange(str) {
-  if (!str || str === '4/2/1') return null;
+  if (!str || str === MAINTENANCE_KEY) return null;
   const p = str.split('-');
   if (p.length === 2) return { lo: parseFloat(p[0]), hi: parseFloat(p[1]) };
   const v = parseFloat(p[0]);
@@ -2358,6 +2371,10 @@ function parseDoseRange(str) {
 }
 function calcDose(str, wt) {
   if (!wt) return null;
+  if (str === MAINTENANCE_KEY) {
+    const m = maintenanceFluid(wt);
+    return m == null ? null : { lo: m, hi: m };
+  }
   const r = parseDoseRange(str);
   if (!r) return null;
   return { lo: r.lo * wt, hi: r.hi * wt };
@@ -2421,16 +2438,78 @@ function roundHalfUp(x) {
   return Math.ceil(x * 2) / 2;
 }
 
-function renderAirway(wt, out) {
-  var yr = parseFloat(document.getElementById('pd-yr').value) || 0;
-  var mo = parseFloat(document.getElementById('pd-mo').value) || 0;
-  var age = yr + mo / 12;
-  if (!age && wt) age = Math.max(0, wt / 2 - 4);
+// CLINICAL VALUES - confirm against your institution's own guideline.
+// Cole's formulae (age/4 + 4 uncuffed, age/4 + 3.5 cuffed, age/2 + 12 at the
+// lip) hold from roughly 1 year. Below that they oversize badly: a term neonate
+// came out at 4.0 mm sited 12 cm at the lip, where 3.0-3.5 mm at 9-10 cm is
+// correct - an oversized tube risks subglottic injury and 12 cm is frankly
+// endobronchial. Under 1 year is therefore a weight-banded lookup, with depth
+// taken as weight + 6 cm.
+const INFANT_ETT = [
+  { maxWt: 1,        uncuffed: 2.5, cuffed: null, label: '<1 kg' },
+  { maxWt: 2,        uncuffed: 3.0, cuffed: null, label: '1-2 kg' },
+  { maxWt: 3,        uncuffed: 3.0, cuffed: 3.0,  label: '2-3 kg' },
+  { maxWt: Infinity, uncuffed: 3.5, cuffed: 3.0,  label: '>3 kg (term)' }
+];
+const COLE_MIN_AGE_YEARS   = 1;
+const AIRWAY_MAX_AGE_YEARS = 12;
 
-  var ettUC  = roundHalfUp(age / 4 + 4);
-  var ettC   = roundHalfUp(age / 4 + 3.5);
-  var ettLip  = roundHalfUp(age / 2 + 12);
-  var ettNose = roundHalfUp(age / 2 + 15);
+// Age inferred from weight when only a weight is known. The old version
+// inverted the INFANT formula but read the result as YEARS, so a 30 kg child
+// came out as 11 years and was offered a 7.0 mm tube instead of ~6.0 mm. Each
+// APLS band is now inverted on its own terms, and weights outside them are
+// refused rather than guessed.
+function airwayAgeFromWeight(wt) {
+  if (!(wt > 0) || wt < 4) return null;
+  if (wt <= 10) return (2 * (wt - 4)) / 12;
+  if (wt <= 18) return (wt - 8) / 2;
+  if (wt <= 43) return (wt - 7) / 3;
+  return null;
+}
+
+function renderAirway(wt, out) {
+  // "Known" means the field was filled in, not that the value is above zero -
+  // a neonate is legitimately 0y 0m, and treating that as "no age given" sent
+  // term babies down the estimate-age-from-weight path.
+  var yrRaw = (document.getElementById('pd-yr').value || '').trim();
+  var moRaw = (document.getElementById('pd-mo').value || '').trim();
+  var yr = parseFloat(yrRaw) || 0;
+  var mo = parseFloat(moRaw) || 0;
+  var age = yr + mo / 12;
+  var ageKnown = (yrRaw !== '' || moRaw !== '');
+  if (!ageKnown) {
+    age = airwayAgeFromWeight(wt);
+    if (age === null) {
+      out.innerHTML = '<div class="empty">Enter an age - this weight is outside the range over which age can be estimated.</div>';
+      return;
+    }
+  }
+
+  if (age > AIRWAY_MAX_AGE_YEARS) {
+    out.innerHTML = '<div class="empty">Age is over 12 years - use adult airway sizing.</div>';
+    return;
+  }
+
+  var infant = age < COLE_MIN_AGE_YEARS;
+  var ettUC, ettC, ettLip, ettNose, band = null;
+
+  if (infant) {
+    if (!(wt > 0)) {
+      out.innerHTML = '<div class="empty">Under 1 year, tube size is chosen by weight - enter a weight.</div>';
+      return;
+    }
+    var b = INFANT_ETT.find(function (x) { return wt <= x.maxWt; });
+    band    = b.label;
+    ettUC   = b.uncuffed;
+    ettC    = b.cuffed;
+    ettLip  = Math.round((wt + 6) * 2) / 2;
+    ettNose = ettLip + 2;
+  } else {
+    ettUC   = roundHalfUp(age / 4 + 4);
+    ettC    = roundHalfUp(age / 4 + 3.5);
+    ettLip  = roundHalfUp(age / 2 + 12);
+    ettNose = roundHalfUp(age / 2 + 15);
+  }
 
   var lma, lmaMax;
   if      (wt < 5)  { lma = '1';   lmaMax = '4 ml'; }
@@ -2443,8 +2522,8 @@ function renderAirway(wt, out) {
 
   var guedel = age < 0.5 ? '00' : age < 1 ? '0' : age < 2 ? '1' : age < 5 ? '2' : age < 10 ? '3' : '3-4';
   var mask   = wt < 5 ? '0 (neonatal)' : wt < 10 ? '1 (infant)' : wt < 20 ? '2 (small child)' : wt < 30 ? '3 (child)' : '4 (small adult)';
-  var blade  = age < 0.5 ? 'Miller 0' : age < 1 ? 'Miller 1' : age < 2 ? 'Miller 1-2' : age < 5 ? 'Mac 1 / Miller 2' : age < 10 ? 'Mac 2 (MacGrath 2)' : age < 14 ? 'Mac 3 (MacGrath 3)' : 'Mac 3-4 (MacGrath 3)';
-  var cuffNote = age < 2 ? 'Uncuffed preferred <2yr' : age < 8 ? 'Cuffed acceptable; cuff pressure ≤20 cmH₂O' : 'Cuffed ETT';
+  var blade  = age < 0.5 ? 'Miller 0' : age < 1 ? 'Miller 1' : age < 2 ? 'Miller 1-2' : age < 5 ? 'Mac 1 / Miller 2' : age < 10 ? 'Mac 2 (MacGrath 2)' : 'Mac 3 (MacGrath 3)';
+  var cuffNote = age < 2 ? 'Uncuffed preferred <2yr' : age < 8 ? 'Cuffed acceptable; cuff pressure \u226420 cmH\u2082O' : 'Cuffed ETT';
 
   function row(label, val, note) {
     return '<tr class="grp-only"><td style="vertical-align:middle;border-right:1px solid var(--bg4)">' +
@@ -2453,19 +2532,27 @@ function renderAirway(wt, out) {
       '</td><td class="dval" colspan="4" style="font-size:15px;font-weight:600;color:var(--text)">' + val + '</td></tr>';
   }
 
+  var basis = ageKnown
+    ? (infant ? 'Sized by weight (' + band + ') - Cole\u2019s formulae are not valid under 1 year'
+              : 'Sized by age (' + (Math.round(age * 10) / 10) + ' y)')
+    : 'Age estimated from weight as ~' + (Math.round(age * 10) / 10) + ' y - enter an actual age if known';
+
   out.innerHTML = '<div style="overflow-x:auto"><table class="dtable">' +
     '<thead><tr><th style="width:40%">Equipment</th><th colspan="4">Size</th></tr></thead><tbody>' +
     row('ETT uncuffed', ettUC + ' mm', cuffNote) +
-    row('ETT cuffed',   ettC  + ' mm', cuffNote) +
-    row('ETT length — lip',  ettLip  + ' cm') +
-    row('ETT length — nose', ettNose + ' cm') +
+    row('ETT cuffed',   (ettC == null ? 'not used at this weight' : ettC + ' mm'), cuffNote) +
+    row('ETT length \u2014 lip',  ettLip  + ' cm', infant ? 'weight + 6 cm' : '') +
+    row('ETT length \u2014 nose', ettNose + ' cm') +
     row('LMA', 'Size ' + lma + ' (max ' + lmaMax + ')') +
     row('Guedel airway', 'Size ' + guedel) +
     row('Face mask', mask) +
     row('Laryngoscope blade', blade) +
     '</tbody></table>' +
-    '<div style="margin-top:8px;font-size:11px;color:var(--text3)">' +
-    'ETT = age/4 + 4 (uncuffed), age/4 + 3.5 (cuffed), rounded up to nearest 0.5mm</div></div>';
+    '<div style="margin-top:8px;font-size:11px;color:var(--text3)">' + basis + '</div>' +
+    '<div style="margin-top:4px;font-size:11px;color:var(--text3)">' +
+    (infant ? 'Under 1 year: weight-banded tube size, depth = weight + 6 cm.'
+            : 'ETT = age/4 + 4 (uncuffed), age/4 + 3.5 (cuffed), rounded up to the nearest 0.5 mm. Depth = age/2 + 12 cm at the lip.') +
+    ' Always confirm placement clinically.</div></div>';
 }
 
 function calcPaed() {
@@ -2492,6 +2579,9 @@ function calcPaed() {
       const raw = dosePerKg * wt;
       const capped = Math.min(raw, 1000);
       dose = { lo: capped, hi: capped };
+    } else if (drug.doseStr === MAINTENANCE_KEY) {
+      const r = maintenanceFluid(wt);
+      dose = r == null ? null : { lo: Math.round(r), hi: Math.round(r) };
     } else {
       const rawDose = calcDose(drug.doseStr, wt);
       if (rawDose && drug.maxDose != null) {
@@ -2501,7 +2591,10 @@ function calcPaed() {
       }
     }
     const isCapped = dose && drug.maxDose != null && dose.hi >= drug.maxDose;
-    const doseStr  = fmtDosePair(dose, drug.unit) + (isCapped ? '*' : '');
+    // A maintenance rate is prescribed as whole mL/hr, not to one decimal.
+    const doseStr  = (drug.doseStr === MAINTENANCE_KEY && dose)
+      ? Math.round(dose.lo) + ' mL/hr'
+      : fmtDosePair(dose, drug.unit) + (isCapped ? '*' : '');
     const isOral  = drug.route === 'oral' || drug.route === 'in';
     const multi   = drug.concs.length > 1;
     drug.concs.forEach((cv, ci) => {
@@ -2527,7 +2620,7 @@ function calcPaed() {
           ${drug.note ? `<div class="dnote">${drug.note}</div>` : ''}
         </td>
         <td rowspan="${drug.concs.length}" style="vertical-align:middle;text-align:right;border-right:1px solid var(--bg4)">
-          <span style="color:var(--text2);font-size:12px">${drug.paracetamolIV ? (wt<5?'7.5':wt<=10?'10':'15') : drug.doseStr} ${drug.unit}</span>
+          <span style="color:var(--text2);font-size:12px">${drug.paracetamolIV ? (wt<5?'7.5':wt<=10?'10':'15') + ' ' + drug.unit : drug.doseStr === MAINTENANCE_KEY ? '4-2-1 rule' : drug.doseStr + ' ' + drug.unit}</span>
         </td>
         <td rowspan="${drug.concs.length}" class="dval" style="vertical-align:middle;border-right:1px solid var(--bg4)">${doseStr}</td>`;
       }

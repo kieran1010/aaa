@@ -1,0 +1,7 @@
+# Node artefacts. jsdom is installed ad hoc for calc/dom.test.js
+# (npm install --no-save jsdom) and must never be committed - this repo ships
+# as a single static HTML file and has no runtime dependencies.
+node_modules/
+package-lock.json
+npm-debug.log*
+.npm/

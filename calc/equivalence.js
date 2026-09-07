@@ -20,7 +20,9 @@ const live = {
   aplsWeight:      L.pure('aplsWeight'),
   aplsFormula:     L.pure('aplsFormula'),
   parseDoseRange:  L.pure('parseDoseRange'),
-  calcDose:        L.pure('calcDose', ['parseDoseRange']),
+  calcDose:        L.pure('calcDose', ['parseDoseRange', 'maintenanceFluid']),
+  maintenanceFluid: L.pure('maintenanceFluid'),
+  airwayAgeFromWeight: L.pure('airwayAgeFromWeight'),
   getIBW:          L.withDom('getIBW'),
   getPdWt:         L.withDom('getPdWt', ['aplsWeight'])
 };
@@ -101,6 +103,12 @@ Object.keys(C.LA_DRUGS).forEach(k => {
     cmp(`laMax(${k},${w})`, Math.min(d.mgkg * w, d.ceil), C.laMaxDose(k, w));
   }
 });
+
+// Holliday-Segar and the airway weight->age inversion
+for (let w = 0; w <= 200; w += 0.5) {
+  cmp(`maintenanceFluid(${w})`, live.maintenanceFluid(w), C.maintenanceFluid(w));
+  cmp(`airwayAgeFromWeight(${w})`, live.airwayAgeFromWeight(w), C.airwayAgeFallback(w));
+}
 
 console.log(`\n${checks} equivalence checks against the live index.html, ${fails} mismatches`);
 if (fails) { console.log('\nFAIL — calc/calculators.js has diverged from index.html'); process.exit(1); }

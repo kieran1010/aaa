@@ -207,14 +207,27 @@ test('cumulative toxicity fraction is additive and sound', () => {
 
 /* ============================= paediatric dosing ========================= */
 
-test('CURRENT: 4-2-1 maintenance returns a flat 4 mL/kg/hr (F9)', () => {
-  eq(C.calcDose('4-2-1', 20).lo, 80, 0, 'should be 60:');
-  eq(C.calcDose('4-2-1', 45).lo, 180, 0, 'should be 85:');
-  eq(C.calcDose('4-2-1', 10).lo, 40, 0, 'coincidentally right at 10 kg:');
+test('FIXED F9: 4-2-1 is the Holliday-Segar rule', () => {
+  eq(C.maintenanceFluid(5),  20, 0, '4 mL/kg for the first 10 kg:');
+  eq(C.maintenanceFluid(10), 40, 0, 'band boundary:');
+  eq(C.maintenanceFluid(15), 50, 0, '+2 mL/kg for the second 10 kg:');
+  eq(C.maintenanceFluid(20), 60, 0, 'band boundary, was 80:');
+  eq(C.maintenanceFluid(30), 70, 0, '+1 mL/kg thereafter, was 120:');
+  eq(C.maintenanceFluid(45), 85, 0, 'was 180:');
+  eq(C.maintenanceFluid(70), 110, 0);
+  is(C.maintenanceFluid(0), null);
 });
-pending('F9', '4-2-1 should be implemented as the Holliday-Segar rule', () => {
+
+test('FIXED F9: the maintenance row routes through Holliday-Segar', () => {
   eq(C.calcDose('4-2-1', 20).lo, 60, 0);
   eq(C.calcDose('4-2-1', 45).lo, 85, 0);
+  is(C.parseDoseRange('4-2-1'), null, 'no longer falls through to a flat rate:');
+});
+
+test('maintenance is continuous across both band boundaries', () => {
+  const e = 1e-9;
+  eq(C.maintenanceFluid(10 - e), C.maintenanceFluid(10), 1e-6);
+  eq(C.maintenanceFluid(20 - e), C.maintenanceFluid(20), 1e-6);
 });
 
 test('CURRENT: a maxDose field is honoured; a note is not (F3)', () => {
@@ -241,31 +254,52 @@ test('LMA sizing matches the classic chart across all bands', () => {
   is(C.lmaSize(60).size, '4');   is(C.lmaSize(80).size, '5');
 });
 
-test('CURRENT: neonatal ETT is oversized and too deep (F5b)', () => {
-  const s = C.airwaySizes(0);
-  eq(s.ettUncuffed, 4.0, 0, 'neonate should take 3.0-3.5 mm:');
-  eq(s.depthLip, 12, 0, 'neonate should sit at 9-10 cm:');
-});
-pending('F5', 'neonatal ETT should be 3.0-3.5 mm at 9-10 cm', () => {
-  const s = C.airwaySizes(0);
-  if (s.ettUncuffed > 3.5) throw new Error(`${s.ettUncuffed} mm too large for a neonate`);
-  if (s.depthLip > 10)     throw new Error(`${s.depthLip} cm is endobronchial in a neonate`);
+test('FIXED F5: a term neonate gets an appropriate tube at an appropriate depth', () => {
+  const s = C.airwaySizes(0, 3.5);
+  eq(s.ettUncuffed, 3.5, 0, 'was 4.0 mm:');
+  eq(s.ettCuffed,   3.0, 0);
+  eq(s.depthLip,    9.5, 0, 'weight + 6; was 12 cm, which is endobronchial:');
+  is(s.infant, true);
 });
 
-test('CURRENT: weight-only entry over-estimates age above 20 kg (F5a)', () => {
-  eq(C.airwayAgeFallback(10), 1,  0, 'right at 10 kg:');
-  eq(C.airwayAgeFallback(30), 11, 0, 'a 30 kg child is ~7.7y, not 11y:');
-  eq(C.airwaySizes(C.airwayAgeFallback(30)).ettUncuffed, 7.0, 0, 'gives 7.0 mm; should be ~6.0:');
-});
-pending('F5', 'weight-only entry should not oversize the tube', () => {
-  const ett = C.airwaySizes(C.airwayAgeFallback(30)).ettUncuffed;
-  if (ett > 6.5) throw new Error(`30 kg child offered a ${ett} mm tube`);
+test('FIXED F5: infant tube size bands', () => {
+  eq(C.airwaySizes(0, 0.8).ettUncuffed, 2.5, 0, '<1 kg:');
+  eq(C.airwaySizes(0, 1.5).ettUncuffed, 3.0, 0, '1-2 kg:');
+  eq(C.airwaySizes(0, 2.5).ettUncuffed, 3.0, 0, '2-3 kg:');
+  eq(C.airwaySizes(0, 4.0).ettUncuffed, 3.5, 0, 'term:');
+  is(C.airwaySizes(0, 1.5).ettCuffed, null, 'no cuffed tube offered under 2 kg:');
 });
 
-test('ETT formulae are correct within their valid range', () => {
+test('FIXED F5: under 1 year, a weight is required rather than assumed', () => {
+  is(C.airwaySizes(0.5).needsWeight, true);
+  is(C.airwaySizes(0.5).ettUncuffed, undefined);
+});
+
+test('FIXED F5: weight-only entry no longer oversizes the tube', () => {
+  eq(C.airwayAgeFallback(10), 1,   0.01, '10 kg is 1 year:');
+  eq(C.airwayAgeFallback(30), 7.67, 0.01, 'a 30 kg child is ~7.7y, was read as 11y:');
+  eq(C.airwaySizes(C.airwayAgeFallback(30)).ettUncuffed, 6.0, 0, 'was 7.0 mm:');
+  eq(C.airwayAgeFallback(40), 11, 0.01, '40 kg is an 11-year-old by APLS (3x11+7):');
+  eq(C.airwaySizes(C.airwayAgeFallback(40)).ettUncuffed, 7.0, 0, 'was 8.0 mm when 40 kg was read as 16y:');
+});
+
+test('FIXED F5: weights outside the APLS bands are refused, not guessed', () => {
+  is(C.airwayAgeFallback(3),  null, 'below the infant formula floor:');
+  is(C.airwayAgeFallback(50), null, 'above the 12-year band:');
+  is(C.airwayAgeFallback(0),  null);
+});
+
+test('FIXED F5: airway sizing is refused above 12 years', () => {
+  is(C.airwaySizes(13), null, 'was a 14 mm tube at 40 years:');
+  is(C.airwaySizes(40), null);
+});
+
+test('Cole\'s formulae still correct within their valid range', () => {
   eq(C.airwaySizes(4).ettUncuffed, 5.0, 0);
   eq(C.airwaySizes(8).ettUncuffed, 6.0, 0);
   eq(C.airwaySizes(8).ettCuffed,   5.5, 0);
+  eq(C.airwaySizes(8).depthLip,   16.0, 0);
+  eq(C.airwaySizes(1).ettUncuffed, 4.5, 0, 'Cole applies from 1 year:');
 });
 
 /* ================================= opioids =============================== */

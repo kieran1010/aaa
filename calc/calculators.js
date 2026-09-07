@@ -113,10 +113,20 @@
 
   /* ------------------------------------------------------------ paed dosing */
 
-  // F9: guards the string '4/2/1' but the data carries '4-2-1', which splits into
-  // three parts, falls through, and returns a flat {lo:4, hi:4}.
+  // Holliday-Segar: 4 mL/kg/hr for the first 10 kg, 2 for the next 10, 1 beyond.
+  // Previously the '4-2-1' row fell through parseDoseRange and produced a flat
+  // 4 mL/kg/hr - 180 mL/hr for a 45 kg child instead of 85 (F9).
+  function maintenanceFluid(wt) {
+    if (!wt || wt <= 0) return null;
+    if (wt <= 10) return 4 * wt;
+    if (wt <= 20) return 40 + 2 * (wt - 10);
+    return 60 + (wt - 20);
+  }
+
+  var MAINTENANCE_KEY = '4-2-1';
+
   function parseDoseRange(str) {
-    if (!str || str === '4/2/1') return null;
+    if (!str || str === MAINTENANCE_KEY) return null;   // handled by maintenanceFluid
     var p = str.split('-');
     if (p.length === 2) return { lo: parseFloat(p[0]), hi: parseFloat(p[1]) };
     var v = parseFloat(p[0]);
@@ -125,6 +135,10 @@
 
   function calcDose(str, wt) {
     if (!wt) return null;
+    if (str === MAINTENANCE_KEY) {
+      var m = maintenanceFluid(wt);
+      return m == null ? null : { lo: m, hi: m };
+    }
     var r = parseDoseRange(str);
     if (!r) return null;
     return { lo: r.lo * wt, hi: r.hi * wt };
@@ -144,15 +158,54 @@
 
   /* ------------------------------------------------------------ paed airway */
 
-  // F5(a): inverts the INFANT formula (wt = months/2 + 4) but reads the result as
-  // YEARS, so it over-estimates age, and therefore tube size, above ~20 kg.
+  // Age inferred from weight, when only a weight is known. The old version
+  // inverted the INFANT formula (wt = months/2 + 4) but read the result as
+  // YEARS, over-estimating age - and so tube size - above about 20 kg (a 30 kg
+  // child came out as 11 years and was offered a 7.0 mm tube). Each APLS band
+  // is now inverted on its own terms.
   function airwayAgeFallback(wt) {
-    return Math.max(0, wt / 2 - 4);
+    if (!(wt > 0)) return null;
+    if (wt < 4)  return null;              // below the infant formula's floor
+    if (wt <= 10) return (2 * (wt - 4)) / 12;   // infant:  wt = months/2 + 4
+    if (wt <= 18) return (wt - 8) / 2;          // 1-5y:    wt = 2*age + 8
+    if (wt <= 43) return (wt - 7) / 3;          // 6-12y:   wt = 3*age + 7
+    return null;                                // adult range - do not guess
   }
 
-  // F5(b): Cole's formulae, extrapolated below their ~1-2y validity floor.
-  function airwaySizes(ageYears) {
+  // Cole's formulae hold from roughly 1 year. Below that they oversize badly:
+  // a term neonate came out at 4.0 mm sited 12 cm at the lip, where 3.0-3.5 mm
+  // at 9-10 cm is correct. Under 1 year is therefore a weight-banded lookup and
+  // the depth rule is weight + 6 cm.
+  //
+  // CLINICAL VALUES - confirm against your institution's own guideline.
+  var INFANT_ETT = [
+    { maxWt: 1,        uncuffed: 2.5, cuffed: null, label: '<1 kg' },
+    { maxWt: 2,        uncuffed: 3.0, cuffed: null, label: '1-2 kg' },
+    { maxWt: 3,        uncuffed: 3.0, cuffed: 3.0,  label: '2-3 kg' },
+    { maxWt: Infinity, uncuffed: 3.5, cuffed: 3.0,  label: '>3 kg / term' }
+  ];
+
+  var COLE_MIN_AGE_YEARS = 1;
+  var AIRWAY_MAX_AGE_YEARS = 12;
+
+  function airwaySizes(ageYears, weightKg) {
+    if (ageYears == null || !(ageYears >= 0)) return null;
+    if (ageYears > AIRWAY_MAX_AGE_YEARS) return null;   // adult sizing, not this table
+
+    if (ageYears < COLE_MIN_AGE_YEARS) {
+      if (!(weightKg > 0)) return { needsWeight: true };
+      var band = INFANT_ETT.find(function (b) { return weightKg <= b.maxWt; });
+      var depth = Math.round((weightKg + 6) * 2) / 2;   // weight + 6 cm at the lip
+      return {
+        infant: true, band: band.label,
+        ettUncuffed: band.uncuffed,
+        ettCuffed:   band.cuffed,
+        depthLip:    depth,
+        depthNose:   depth + 2
+      };
+    }
     return {
+      infant: false,
       ettUncuffed: roundHalfUp(ageYears / 4 + 4),
       ettCuffed:   roundHalfUp(ageYears / 4 + 3.5),
       depthLip:    roundHalfUp(ageYears / 2 + 12),
@@ -316,6 +369,7 @@
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     parseDoseRange: parseDoseRange, calcDose: calcDose, applyMaxDose: applyMaxDose,
+    maintenanceFluid: maintenanceFluid, INFANT_ETT: INFANT_ETT,
     paracetamolIVDose: paracetamolIVDose,
     airwayAgeFallback: airwayAgeFallback, airwaySizes: airwaySizes, lmaSize: lmaSize,
     LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
