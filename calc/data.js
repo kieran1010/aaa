@@ -76,19 +76,21 @@ function statementSource(name) {
   throw new Error(`unterminated statement for ${name}`);
 }
 
-function evaluateChain(names) {
+function evaluateChain(names, scope) {
   const src = names.map(statementSource).join('\n');
   const last = names[names.length - 1];
+  const keys = Object.keys(scope || {});
   // eslint-disable-next-line no-new-func
-  return new Function(src + '\nreturn ' + last + ';')();
+  return new Function(...keys, src + '\nreturn ' + last + ';')(...keys.map(k => scope[k]));
 }
 
 const PD_CATS      = extract('PD_CATS');
 const DRUG_CATS    = extract('DRUG_CATS');
 const ABX_DATA     = extract('ABX_DATA');
-const ANZCA_OPIOIDS = extract('ANZCA_OPIOIDS');
-const OPIOIDS      = evaluateChain(['ANZCA_OPIOIDS', 'OPIOIDS']);
-const OMEDD_DRUGS  = evaluateChain(['ANZCA_OPIOIDS', 'OMEDD_DRUGS']);
+// The ANZCA table moved into calc/calculators.js; index.html destructures it.
+const { ANZCA_OPIOIDS } = require('./calculators.js');
+const OPIOIDS     = evaluateChain(['OPIOIDS'], { ANZCA_OPIOIDS });
+const OMEDD_DRUGS = evaluateChain(['OMEDD_DRUGS'], { ANZCA_OPIOIDS });
 
 // Flatten the paediatric categories to a single list for scanning.
 const PD_DRUGS = Object.entries(PD_CATS).flatMap(([cat, drugs]) =>

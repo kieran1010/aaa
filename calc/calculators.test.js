@@ -165,24 +165,24 @@ test('FIXED F15: age from DOB never goes backwards as the date advances', () => 
 test('Devine and Janmahasatian at a reference patient', () => {
   eq(C.devineIBW(180, 'm'), 75, 0.1);
   eq(C.devineIBW(165, 'f'), 56.9, 0.1);
-  eq(C.lbw(80, 180, 'm'), 61.6, 0.5);
+  eq(C.janmahasatianLBW(80, 180, 'm'), 61.6, 0.5);
 });
 
 test('FIXED F14: there is one ABW, and it never exceeds the patient', () => {
-  eq(C.abw(45, 170, 'f'), 45, 0.1, 'was 61 kg on the drugs tab:');
-  eq(C.abw(50, 175, 'm'), 50, 0.1, 'was 70 kg:');
-  eq(C.abw(55, 180, 'm'), 55, 0.1, 'was 75 kg:');
+  eq(C.adjustedBW(45, 170, 'f'), 45, 0.1, 'was 61 kg on the drugs tab:');
+  eq(C.adjustedBW(50, 175, 'm'), 50, 0.1, 'was 70 kg:');
+  eq(C.adjustedBW(55, 180, 'm'), 55, 0.1, 'was 75 kg:');
   for (let wt = 40; wt <= 200; wt += 5) {
     for (const ht of [155, 170, 185]) {
-      const a = C.abw(wt, ht, 'm');
+      const a = C.adjustedBW(wt, ht, 'm');
       if (a > wt + 1e-9) throw new Error(`ABW ${a} > TBW ${wt} at ${ht} cm`);
     }
   }
 });
 
 test('FIXED F14: ABW is still IBW + 0.4(TBW-IBW) in obesity', () => {
-  eq(C.abw(90, 160, 'f'), 67.4, 0.1);
-  eq(C.abw(120, 180, 'm'), 93, 0.5);
+  eq(C.adjustedBW(90, 160, 'f'), 67.4, 0.1);
+  eq(C.adjustedBW(120, 180, 'm'), 93, 0.5);
 });
 
 test('FIXED F19: Devine refuses heights below 152.4 cm', () => {
@@ -191,7 +191,7 @@ test('FIXED F19: Devine refuses heights below 152.4 cm', () => {
   is(C.devineIBW(150, 'f'), null);
   eq(C.devineIBW(152.4, 'f'), 45.5, 0.01, 'valid at exactly 5 ft:');
   eq(C.devineIBW(180, 'm'), 75, 0.1);
-  is(C.abw(60, 150, 'f'), null, 'ABW declines too, rather than using a bogus IBW:');
+  is(C.adjustedBW(60, 150, 'f'), null, 'ABW declines too, rather than using a bogus IBW:');
 });
 
 /* ============================== LA toxicity ============================== */
@@ -306,17 +306,17 @@ test('FIXED F5: under 1 year, a weight is required rather than assumed', () => {
 });
 
 test('FIXED F5: weight-only entry no longer oversizes the tube', () => {
-  eq(C.airwayAgeFallback(10), 1,   0.01, '10 kg is 1 year:');
-  eq(C.airwayAgeFallback(30), 7.67, 0.01, 'a 30 kg child is ~7.7y, was read as 11y:');
-  eq(C.airwaySizes(C.airwayAgeFallback(30)).ettUncuffed, 6.0, 0, 'was 7.0 mm:');
-  eq(C.airwayAgeFallback(40), 11, 0.01, '40 kg is an 11-year-old by APLS (3x11+7):');
-  eq(C.airwaySizes(C.airwayAgeFallback(40)).ettUncuffed, 7.0, 0, 'was 8.0 mm when 40 kg was read as 16y:');
+  eq(C.airwayAgeFromWeight(10), 1,   0.01, '10 kg is 1 year:');
+  eq(C.airwayAgeFromWeight(30), 7.67, 0.01, 'a 30 kg child is ~7.7y, was read as 11y:');
+  eq(C.airwaySizes(C.airwayAgeFromWeight(30)).ettUncuffed, 6.0, 0, 'was 7.0 mm:');
+  eq(C.airwayAgeFromWeight(40), 11, 0.01, '40 kg is an 11-year-old by APLS (3x11+7):');
+  eq(C.airwaySizes(C.airwayAgeFromWeight(40)).ettUncuffed, 7.0, 0, 'was 8.0 mm when 40 kg was read as 16y:');
 });
 
 test('FIXED F5: weights outside the APLS bands are refused, not guessed', () => {
-  is(C.airwayAgeFallback(3),  null, 'below the infant formula floor:');
-  is(C.airwayAgeFallback(50), null, 'above the 12-year band:');
-  is(C.airwayAgeFallback(0),  null);
+  is(C.airwayAgeFromWeight(3),  null, 'below the infant formula floor:');
+  is(C.airwayAgeFromWeight(50), null, 'above the 12-year band:');
+  is(C.airwayAgeFromWeight(0),  null);
 });
 
 test('FIXED F5: airway sizing is refused above 12 years', () => {

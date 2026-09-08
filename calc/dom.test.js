@@ -26,9 +26,20 @@ function test(name, fn) {
 }
 function is(a, b, m) { if (a !== b) throw new Error(`${m || ''} expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
 
+const HTML   = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const MODULE = fs.readFileSync(path.join(__dirname, 'calculators.js'), 'utf8');
+
+/*
+ * index.html loads calc/calculators.js with a <script src>. jsdom will fetch
+ * that only with `resources: 'usable'`, which makes loading asynchronous and
+ * would turn every test below into an async one. For the synchronous tests the
+ * module is inlined in place of the tag instead — same code, same order.
+ * `loadsModuleForReal()` at the end covers the tag itself, asynchronously.
+ */
 function page() {
-  const dom = new JSDOM(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'),
-                        { runScripts: 'dangerously' });
+  const html = HTML.replace('<script src="calc/calculators.js"></script>',
+                            '<script>' + MODULE + '</script>');
+  const dom = new JSDOM(html, { runScripts: 'dangerously' });
   const d = dom.window.document, W = dom.window;
   const api = {
     d, W,
@@ -400,6 +411,49 @@ test('F2: the adenosine row shows the fixed SVT dose', () => {
   if (!/6-12 mg/.test(r)) throw new Error(`got: ${r.slice(0, 60)}`);
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-if (fail) { console.log('FAIL'); process.exit(1); }
-console.log('PASS');
+/* ------------- the <script src> itself, loaded the way a browser does ------ */
+
+function loadsModuleForReal() {
+  return new Promise((resolve) => {
+    const dom = new JSDOM(HTML, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      url: 'file://' + path.join(__dirname, '..', 'index.html')
+    });
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      fail++;
+      console.log('  FAIL  the real <script src> never fired load');
+      resolve();
+    }, 60000);
+
+    dom.window.addEventListener('load', () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);          // otherwise it fires later and logs a phantom failure
+      try {
+        const W = dom.window, d = W.document;
+        if (typeof W.Calc !== 'object') throw new Error('window.Calc was not defined by the <script src>');
+        if (typeof W.Calc.aplsWeight !== 'function') throw new Error('Calc.aplsWeight missing');
+        // and the page actually works off it
+        const el = d.getElementById('pd-yr');
+        el.value = '3';
+        el.dispatchEvent(new W.Event('input', { bubbles: true }));
+        if (d.getElementById('pd-apls-wt').textContent !== '14 kg') {
+          throw new Error(`page did not compute from the module: ${d.getElementById('pd-apls-wt').textContent}`);
+        }
+        pass++;
+      } catch (e) { fail++; console.log(`  FAIL  the real <script src> loads and drives the page\n        ${e.message}`); }
+      dom.window.close();           // release jsdom's timers so node can exit
+      resolve();
+    });
+  });
+}
+
+loadsModuleForReal().then(() => {
+  console.log(`\n${pass} passed, ${fail} failed`);
+  if (fail) { console.log('FAIL'); process.exit(1); }
+  console.log('PASS');
+});

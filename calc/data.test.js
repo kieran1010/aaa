@@ -8,6 +8,10 @@
  */
 'use strict';
 const D = require('./data.js');
+const fs = require('fs');
+const path = require('path');
+// Calculation logic and the ANZCA table now live here, not in index.html.
+const MODULE_SRC = fs.readFileSync(path.join(__dirname, 'calculators.js'), 'utf8');
 
 let pass = 0, fail = 0, pend = 0, pendUnexpected = [];
 function test(name, fn) {
@@ -157,18 +161,20 @@ test('FIXED F6: both tools are derived from it, so they cannot diverge', () => {
 test('FIXED F6: neither tool stores its own factor list any more', () => {
   if (/const OPIOIDS = \[\s*\{ key:/.test(D.SRC)) throw new Error('conversion tab still has a hard-coded list');
   if (/var OMEDD_DRUGS = \[\s*\{name:/.test(D.SRC)) throw new Error('oMEDD tab still has a hard-coded list');
-  is((D.SRC.match(/const ANZCA_OPIOIDS/g) || []).length, 1, 'one table:');
+  is((MODULE_SRC.match(/var ANZCA_OPIOIDS =/g) || []).length, 1, 'one table, in the module:');
+  is((D.SRC.match(/ANZCA_OPIOIDS\s*=\s*\[/g) || []).length, 0, 'and not a second copy in index.html:');
 });
 
 test('FIXED F6: the source and date are stated on screen', () => {
-  if (!/ANZCA FPM PS01\(PM\) Appendix 2, October 2025/.test(D.SRC)) {
-    throw new Error('the table is not attributed');
+  if (!/ANZCA FPM PS01\(PM\) Appendix 2, October 2025/.test(MODULE_SRC)) {
+    throw new Error('the table is not attributed in the module');
   }
+  if (!/ANZCA_SOURCE/.test(D.SRC)) throw new Error('index.html does not render the attribution');
 });
 
 test('the take-home naloxone threshold is present', () => {
-  if (!/THN_THRESHOLD_OMEDD = 40/.test(D.SRC)) throw new Error('THN threshold missing');
-  if (!/take-home naloxone/i.test(D.SRC)) throw new Error('THN prompt text missing');
+  if (!/THN_THRESHOLD_OMEDD = 40/.test(MODULE_SRC)) throw new Error('THN threshold missing from the module');
+  if (!/take-home naloxone/i.test(D.SRC)) throw new Error('THN prompt text missing from the page');
 });
 
 test('methadone is absent from the oMEDD list, as ANZCA intends (F8)', () => {
@@ -263,13 +269,11 @@ test('FIXED F23: dantrolene and Intralipid follow the patient weight', () => {
   if (!/updateEmergencyWeightDoses\(\);/.test(D.SRC)) throw new Error('never called');
 });
 
-test('FIXED F14/F19: one shared body-weight implementation', () => {
-  const devine = (D.SRC.match(/function devineIBW/g) || []).length;
-  const abw    = (D.SRC.match(/function adjustedBW/g) || []).length;
-  is(devine, 1, 'devineIBW defined once:');
-  is(abw, 1, 'adjustedBW defined once:');
-  is((D.SRC.match(/function janmahasatianLBW/g) || []).length, 1, 'LBW defined once:');
-  // the old per-tab copies had no named function at all
+test('FIXED F14/F19: one shared body-weight implementation, in the module', () => {
+  ['devineIBW', 'adjustedBW', 'janmahasatianLBW'].forEach(fn => {
+    is((MODULE_SRC.match(new RegExp('function ' + fn + '\\b', 'g')) || []).length, 1, `${fn} in the module:`);
+    is((D.SRC.match(new RegExp('function ' + fn + '\\b', 'g')) || []).length, 0, `${fn} not also in index.html:`);
+  });
   if (/var lbwM = rnd\(\(9270/.test(D.SRC)) throw new Error('an inline LBW copy remains');
 });
 
