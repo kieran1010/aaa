@@ -1673,3 +1673,69 @@ unenforced.
 
 **All 30 findings are now closed** — 29 fixed, F27 retracted. There are no pending
 tests left.
+
+---
+
+# Addendum H — index.html rewired onto the module
+
+**8 September 2026.** The last structural item from §C.2 and the merge notes.
+
+## H.1 What changed
+
+`index.html` carried its own copy of every calculation, kept in step with
+`calc/calculators.js` by hand and policed by an equivalence harness. It now
+**loads** the module:
+
+```html
+<script src="calc/calculators.js"></script>
+```
+
+and brings the shared names into scope as the first statement of its inline
+script. **15 functions and 11 constants** were deleted from `index.html`, which
+drops from 2,680 to 2,551 lines. There is now one definition of each.
+
+Three module functions were renamed to `index.html`'s clearer names —
+`lbw` → `janmahasatianLBW`, `abw` → `adjustedBW`,
+`airwayAgeFallback` → `airwayAgeFromWeight`.
+
+## H.2 The equivalence harness is retired, and replaced
+
+`calc/live.js` and `calc/equivalence.js` are deleted. They existed to prove two
+copies agreed across ~12,000 swept inputs; with one copy there is nothing to
+compare. What needs guarding now is different, so
+**`calc/no-duplication.test.js`** asserts that:
+
+- `index.html` loads the module, and does so *before* the inline script
+- it redefines none of the module's functions or constants
+- every name in the `const { … } = Calc;` list is actually exported
+- every module name the page uses appears in that list
+
+**The last two are not ceremony.** A name destructured but not exported is
+`undefined` at runtime, not an error — the page loads and the calculation
+quietly misbehaves. The guard caught exactly that during this change:
+`DEVINE_MIN_HEIGHT_CM`, `APLS_MAX_MONTHS`, `MAINTENANCE_KEY`,
+`COLE_MIN_AGE_YEARS` and `AIRWAY_MAX_AGE_YEARS` were destructured before the
+module exported them, which would have broken `getIBW`, `calcPaed` and
+`renderAirway` in the browser while every other test still passed.
+
+## H.3 Trade-off
+
+The page is no longer a single self-contained file. Both files are served from
+the same origin by GitHub Pages, so normal use is unaffected; saving the page
+locally now needs `calc/calculators.js` beside it. The app already loads its
+images over the network, so it was not self-contained to begin with.
+
+## H.4 Verification
+
+| | |
+|---|---|
+| Syntax | 2,551 lines parse; all 49 inline handlers resolve |
+| No duplication | 6 passed, 0 failed |
+| Logic | 56 passed, 0 failed, 0 pending |
+| Data | 36 passed, 0 failed, 0 pending |
+| DOM | 43 passed, 0 failed |
+
+The DOM suite gained a test that loads the page the way a browser does —
+`resources: 'usable'`, real `<script src>` — and checks that `window.Calc` is
+defined and the paediatric weight computes from it. Its other tests inline the
+module in place of the tag to stay synchronous.

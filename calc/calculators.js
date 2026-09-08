@@ -40,7 +40,7 @@
   }
 
   // Janmahasatian lean body weight.
-  function lbw(weightKg, heightCm, sex) {
+  function janmahasatianLBW(weightKg, heightCm, sex) {
     var bmi = weightKg / ((heightCm / 100) * (heightCm / 100));
     return sex === 'm'
       ? (9270 * weightKg) / (6680 + 216 * bmi)
@@ -51,7 +51,7 @@
   // when TBW <= IBW, which gives an "adjusted" weight LARGER than the patient -
   // the dangerous direction for anything dosed on ABW. Both call sites now use
   // this, and it never exceeds actual weight (F14 fixed).
-  function abw(weightKg, heightCm, sex) {
+  function adjustedBW(weightKg, heightCm, sex) {
     var ibw = devineIBW(heightCm, sex);
     if (ibw == null) return null;
     return weightKg > ibw ? ibw + 0.4 * (weightKg - ibw) : weightKg;
@@ -178,7 +178,7 @@
   // YEARS, over-estimating age - and so tube size - above about 20 kg (a 30 kg
   // child came out as 11 years and was offered a 7.0 mm tube). Each APLS band
   // is now inverted on its own terms.
-  function airwayAgeFallback(wt) {
+  function airwayAgeFromWeight(wt) {
     if (!(wt > 0)) return null;
     if (wt < 4)  return null;              // below the infant formula's floor
     if (wt <= 10) return (2 * (wt - 4)) / 12;   // infant:  wt = months/2 + 4
@@ -320,6 +320,7 @@
     { route:'Parenteral',  drug:'Fentanyl',           unit:'mcg',    factor:0.2,  key:'iv_fentanyl'      },
     { route:'Parenteral',  drug:'Sufentanil',         unit:'mcg',    factor:2,    key:'iv_sufentanil'    }
   ];
+  var ANZCA_SOURCE = 'ANZCA FPM PS01(PM) Appendix 2, October 2025';
   var THN_THRESHOLD_OMEDD = 40;   // ANZCA: take-home naloxone at or above this
 
   var OPIOID_EQUIV = {};
@@ -418,16 +419,21 @@
 
   return {
     fmtN: fmtN, roundHalfUp: roundHalfUp,
-    devineIBW: devineIBW, lbw: lbw, abw: abw,
+    devineIBW: devineIBW, janmahasatianLBW: janmahasatianLBW, adjustedBW: adjustedBW,
+    DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM,
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
+    APLS_MAX_MONTHS: APLS_MAX_MONTHS,
     parseDoseRange: parseDoseRange, calcDose: calcDose, applyMaxDose: applyMaxDose,
-    maintenanceFluid: maintenanceFluid, INFANT_ETT: INFANT_ETT,
+    maintenanceFluid: maintenanceFluid, MAINTENANCE_KEY: MAINTENANCE_KEY,
+    INFANT_ETT: INFANT_ETT, COLE_MIN_AGE_YEARS: COLE_MIN_AGE_YEARS,
+    AIRWAY_MAX_AGE_YEARS: AIRWAY_MAX_AGE_YEARS,
     paracetamolIVDose: paracetamolIVDose,
-    airwayAgeFallback: airwayAgeFallback, airwaySizes: airwaySizes, lmaSize: lmaSize,
+    airwayAgeFromWeight: airwayAgeFromWeight, airwaySizes: airwaySizes, lmaSize: lmaSize,
     LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
     cumulativeToxicFraction: cumulativeToxicFraction,
-    ANZCA_OPIOIDS: ANZCA_OPIOIDS, THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,
+    ANZCA_OPIOIDS: ANZCA_OPIOIDS, ANZCA_SOURCE: ANZCA_SOURCE,
+    THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,
     OPIOID_EQUIV: OPIOID_EQUIV, OMEDD_FACTORS: OMEDD_FACTORS,
     toOralMorphine: toOralMorphine, fromOralMorphine: fromOralMorphine,
     methadoneToOMEDD: methadoneToOMEDD, omeddToMethadone: omeddToMethadone,

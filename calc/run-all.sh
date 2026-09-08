@@ -5,8 +5,8 @@ cd "$(dirname "$0")/.."
 echo "--- syntax (index.html inline script) ---"
 node calc/syntax.test.js
 echo
-echo "--- equivalence (module vs the functions that ship in index.html) ---"
-node calc/equivalence.js
+echo "--- no duplication (index.html loads the module, does not redefine it) ---"
+node calc/no-duplication.test.js
 echo
 echo "--- logic tests ---"
 node calc/calculators.test.js
