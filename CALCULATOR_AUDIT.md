@@ -1739,3 +1739,84 @@ The DOM suite gained a test that loads the page the way a browser does —
 `resources: 'usable'`, real `<script src>` — and checks that `window.Calc` is
 defined and the paediatric weight computes from it. Its other tests inline the
 module in place of the tag to stay synchronous.
+
+---
+
+# Addendum I — F31: weight/height did not cross-populate from an age alone
+
+**9 September 2026.** Reported by the user: entering an infant's age on the home
+screen computed no weight there at all. Investigation found the paediatric tab's
+own APLS estimate was fine — the gap was everywhere else.
+
+## I.1 What was wrong
+
+`globalPatientUpdate()` — the function that fans weight, height, sex and age out
+across every tab — read the **actual** weight field (`g-wt`) and nothing else. It
+had no notion of an age-derived estimate, even though the paediatric tab computes
+one internally via `paedWeight()`. So:
+
+- The home card's own TBW/IBW/LBW/ABW boxes stayed **hidden** whenever only an
+  age was entered, with no actual weight.
+- The adult drug table (`dd-wt`) and the LA calculator (`la-wt`) — neither of
+  which has an age input of its own — showed **nothing**, because they only ever
+  received the actual weight, never an estimate.
+- Height had no reverse path at all: a height typed on the drugs tab or the LA
+  tab never reached the home card, or any other tab. Weight already had this via
+  `backpopulateWeight()`; height did not.
+
+## I.2 The fix
+
+`globalPatientUpdate()` now computes an **effective weight** —
+`paedWeight(yr, mo, actualWt)`, the same function the paediatric tab already
+uses: actual weight if entered, else the APLS estimate from age, else null
+(refusing outside APLS's 3-month–12-year range, per F1).
+
+**The home card's boxes use the effective weight** and say which kind it is:
+
+| | |
+|---|---|
+| Actual weight entered | "kg (entered)" |
+| Age-derived estimate | "kg · APLS estimate" |
+
+**The adult and LA tabs get a hint, never a value.** These two dosing
+calculators have their own well-established "was this typed or estimated"
+semantics (F1, F4) baked into how they render — writing an estimate into `dd-wt`
+or `la-wt` as if it were a real entry would have silently corrupted that
+distinction (e.g. the LA tab's "Actual (lower than IBW)" note would say "Actual"
+about a number nobody measured). So instead, when only an estimate exists, the
+field's `placeholder` shows it (`~7`) and a note beneath it spells it out:
+*"~7 kg from age (APLS estimate) — enter to use"*. A dose is still only
+calculated once a real number is typed in. An adult age produces neither an
+estimate nor a hint, unchanged from F1.
+
+**Height now backpopulates**, mirroring the existing `backpopulateWeight()`:
+a height typed on the drugs tab or the LA tab reaches the home card (if it
+doesn't already have one) and fans back out from there — closing the same loop
+weight already had.
+
+**`getPdWt()` was quietly reimplementing `paedWeight()` by hand** rather than
+calling it — a small duplication the module rewiring missed. It now calls the
+shared function directly.
+
+## I.3 Verified, both directions
+
+| Direction | Field | Result |
+|---|---|---|
+| Home → tabs | weight, height, sex | unchanged, still correct |
+| Home → tabs | DOB → age → estimate | age reaches every tab; estimate now reaches the home boxes and the dd/la hints |
+| Tab → home → tabs | weight (any tab) | unchanged, still correct |
+| Tab → home → tabs | **height** (drugs or LA tab) | **new** — now reaches the home card and fans out |
+| Either | actual weight entered after an estimate was showing | estimate and hints clear everywhere; labelled "(entered)" |
+| Either | adult age (>12y) | no estimate, no hint — F1 preserved |
+
+## I.4 Verification
+
+10 new DOM tests, in the section headed `F31` in `calc/dom.test.js`.
+
+| | |
+|---|---|
+| Syntax | 2,599 lines parse; all 49 inline handlers resolve |
+| No duplication | 6 passed |
+| Logic | 56 passed, 0 pending |
+| Data | 36 passed, 0 pending |
+| DOM | 53 passed (10 new) |

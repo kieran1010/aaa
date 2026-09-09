@@ -47,6 +47,7 @@ function page() {
     change(id, v) { const e = d.getElementById(id); e.value = v; e.dispatchEvent(new W.Event('change', { bubbles: true })); return api; },
     clear(...ids) { ids.forEach(i => { const e = d.getElementById(i); if (e) e.value = ''; }); return api; },
     val(id) { return d.getElementById(id).value; },
+    attr(id, name) { return d.getElementById(id).getAttribute(name); },
     text(id) { return (d.getElementById(id).textContent || '').trim(); },
     cat(label) {
       [...d.querySelectorAll('.cat-btn')].find(b => b.textContent === label)
@@ -367,6 +368,114 @@ test('F26: IM ketamine volume is practical', () => {
   if (!/1\.00 mL/.test(r)) throw new Error(`expected 1.00 mL at 100 mg/mL, got: ${r}`);
   // The concentration itself is asserted in data.test.js; the note deliberately
   // mentions 10 mg/mL, so match on the rendered volume only.
+});
+
+/* ------------- F31: weight/height cross-population, incl. an age alone ---- */
+
+test('F31: an infant age alone now produces a weight on the home card', () => {
+  // Was the reported bug: entering just an age on the home screen computed no
+  // weight at all — the box stayed hidden, because globalPatientUpdate() keyed
+  // everything off the ACTUAL g-wt field and never looked at age.
+  const p = page().set('g-mo', 6);
+  is(p.d.getElementById('g-bw-boxes').style.display, 'grid', 'box now shown:');
+  is(p.text('g-tbw'), '7 kg', 'APLS estimate for 6 months:');
+  is(p.text('g-tbw-note'), 'kg · APLS estimate', 'clearly labelled as an estimate, not "(entered)":');
+});
+
+test('F31: the estimate reaches the drugs and LA tabs as a hint, never as a value', () => {
+  // These tabs have no age input of their own and previously showed nothing.
+  // The estimate must not be written into the field as if it were user-typed —
+  // F1 and F4 exist specifically to keep "measured" and "estimated" weight
+  // distinguishable, and these fields drive real dosing math.
+  const p = page().set('g-mo', 6);
+  is(p.val('dd-wt'), '', 'not silently filled in:');
+  is(p.attr('dd-wt', 'placeholder'), '~7', 'shown as a placeholder instead:');
+  if (!/~7 kg from age \(APLS estimate\)/.test(p.text('dd-wt-est-note'))) {
+    throw new Error(`drugs-tab hint missing: ${p.text('dd-wt-est-note')}`);
+  }
+  is(p.val('la-wt'), '', 'LA tab not silently filled in either:');
+  is(p.attr('la-wt', 'placeholder'), '~7');
+  if (!/~7 kg from age \(APLS estimate\)/.test(p.text('la-wt-est-note'))) {
+    throw new Error(`LA-tab hint missing: ${p.text('la-wt-est-note')}`);
+  }
+});
+
+test('F31: an actual weight overrides the estimate everywhere and clears the hints', () => {
+  const p = page().set('g-mo', 6).set('pd-wt', 8.2);   // typed on the paed tab
+  is(p.val('g-wt'), '8.2', 'backpopulated to the home card:');
+  is(p.text('g-tbw'), '8 kg');
+  is(p.text('g-tbw-note'), 'kg (entered)', 'no longer labelled an estimate:');
+  is(p.val('dd-wt'), '8.2', 'now filled with the real value:');
+  is(p.text('dd-wt-est-note'), '', 'hint cleared:');
+  is(p.val('la-wt'), '8.2');
+  is(p.text('la-wt-est-note'), '');
+});
+
+test('F31: an adult age produces no phantom estimate or hint (F1 preserved)', () => {
+  const p = page().set('g-yr', 40);
+  is(p.d.getElementById('g-bw-boxes').style.display, 'none', 'box stays hidden:');
+  is(p.attr('dd-wt', 'placeholder'), '70', 'default placeholder, not an APLS guess:');
+  is(p.text('dd-wt-est-note'), '');
+  is(p.attr('la-wt', 'placeholder'), '70');
+  is(p.text('la-wt-est-note'), '');
+});
+
+test('F31: clearing the age removes the estimate and restores the default hint', () => {
+  const p = page().set('g-mo', 6);
+  is(p.attr('dd-wt', 'placeholder'), '~7');
+  p.set('g-mo', '');
+  is(p.d.getElementById('g-bw-boxes').style.display, 'none', 'box hides again, as if nothing had been entered:');
+  is(p.attr('dd-wt', 'placeholder'), '70', 'placeholder reset:');
+  is(p.text('dd-wt-est-note'), '', 'hint cleared:');
+});
+
+test('F31: height now backpopulates from the drugs tab to the home card and out to LA', () => {
+  // Weight already did this (backpopulateWeight); height had no equivalent, so
+  // a height typed on one tab never reached any other.
+  const p = page().set('dd-ht', 165);
+  is(p.val('g-ht'), '165', 'reaches the home card:');
+  is(p.val('la-ht'), '165', 'and fans back out to the LA tab:');
+});
+
+test('F31: height backpopulates from the LA tab too, and does not clobber an existing value', () => {
+  const p = page().set('g-ht', 180);
+  p.set('la-ht', 165);              // home already has a height — must not be overwritten
+  is(p.val('g-ht'), '180', 'home card height is untouched:');
+});
+
+test('F31: DOB on the home card flows through to age, weight estimate, and every tab', () => {
+  // The full chain the user asked to have checked: DOB -> age (home + paed) ->
+  // estimated weight (home box) -> hint on the tabs with no age input.
+  const p = page();
+  const el = p.d.getElementById('g-dob');
+  const today = new Date();
+  const dob = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate());
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  el.value = iso(dob);
+  el.dispatchEvent(new p.W.Event('input', { bubbles: true }));   // g-dob is wired to oninput, not onchange
+
+  is(p.val('g-yr'), '3', 'age reaches the home card:');
+  is(p.val('pd-yr'), '3', 'and the paediatric tab:');
+  is(p.d.getElementById('g-bw-boxes').style.display, 'grid', 'weight box now shown from age alone:');
+  is(p.text('g-tbw-note'), 'kg · APLS estimate');
+  if (p.attr('dd-wt', 'placeholder') === '70') throw new Error('drugs-tab hint did not pick up the DOB-derived age');
+});
+
+test('F31: an actual weight typed on the home card reaches every tab (forward direction)', () => {
+  const p = page().set('g-wt', 82).set('g-ht', 178).change('g-sex', 'f');
+  is(p.val('dd-wt'), '82'); is(p.val('pd-wt'), '82'); is(p.val('la-wt'), '82');
+  is(p.val('dd-ht'), '178'); is(p.val('la-ht'), '178');
+  is(p.val('la-sex'), 'f');
+});
+
+test('F31: getPdWt is no longer a second copy of the weight-selection logic', () => {
+  // getPdWt() used to reimplement "actual, else APLS estimate" by hand instead
+  // of calling the shared paedWeight(). Same behaviour, checked here so a
+  // future edit to one can't silently diverge from the other.
+  const p = page().set('pd-yr', 3);
+  is(p.text('pd-wt-used'), '14.0 kg');
+  p.set('pd-wt', 16);
+  is(p.text('pd-wt-used'), '16.0 kg');
 });
 
 /* --------------------------- the Tier 1 fixes ---------------------------- */
