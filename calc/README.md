@@ -27,7 +27,7 @@ node calc/syntax.test.js          # index.html parses; every inline handler reso
 node calc/no-duplication.test.js  # index.html loads the module, does not redefine it
 node calc/calculators.test.js     # 56 passing
 node calc/data.test.js            # 36 passing
-node calc/dom.test.js             # 43 passing  (needs jsdom)
+node calc/dom.test.js             # 53 passing  (needs jsdom)
 ```
 
 `equivalence.js` exits non-zero on any divergence from `index.html`.

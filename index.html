@@ -300,8 +300,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card">
     <div class="slabel">Patient</div>
     <div class="row">
-      <div class="field"><label>Height (cm)</label><input type="number" id="la-ht" placeholder="170" min="100" max="220" style="width:88px" oninput="calcIBW()"></div>
-      <div class="field"><label>Weight (kg)</label><input type="number" id="la-wt" placeholder="70" min="1" max="250" style="width:88px" oninput="backpopulateWeight(this.value);calcIBW()"></div>
+      <div class="field"><label>Height (cm)</label><input type="number" id="la-ht" placeholder="170" min="100" max="220" style="width:88px" oninput="backpopulateHeight(this.value);calcIBW()"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="la-wt" placeholder="70" min="1" max="250" style="width:88px" oninput="backpopulateWeight(this.value);calcIBW()"><div class="ibw-note" id="la-wt-est-note" style="margin-top:2px"></div></div>
       <div class="field"><label>Sex</label>
         <select id="la-sex" style="width:100px" onchange="calcIBW()">
           <option value="">- select -</option>
@@ -564,7 +564,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
     </div>
     <div id="g-bw-boxes" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-      <div class="ibw-box"><div class="ibw-lbl">Total body weight</div><div class="ibw-val" id="g-tbw">—</div><div class="ibw-note">kg (entered)</div></div>
+      <div class="ibw-box"><div class="ibw-lbl">Total body weight</div><div class="ibw-val" id="g-tbw">—</div><div class="ibw-note" id="g-tbw-note">kg (entered)</div></div>
       <div class="ibw-box"><div class="ibw-lbl">Ideal body weight</div><div class="ibw-val" id="g-ibw">—</div><div class="ibw-note" id="g-ibw-note">Devine formula</div></div>
       <div class="ibw-box"><div class="ibw-lbl">Lean body weight</div><div class="ibw-val" id="g-lbw">—</div><div class="ibw-note" id="g-lbw-note">Janmahasatian</div></div>
       <div class="ibw-box"><div class="ibw-lbl">Adjusted body weight</div><div class="ibw-val" id="g-abw">—</div><div class="ibw-note" id="g-abw-note"></div></div>
@@ -1584,8 +1584,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card" style="margin-bottom:12px">
     <div class="slabel">Patient</div>
     <div class="row" style="align-items:flex-end;gap:12px">
-      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="backpopulateWeight(this.value);filterDrugs();calcBodyWeights()"></div>
-      <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="calcBodyWeights()"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="backpopulateWeight(this.value);filterDrugs();calcBodyWeights()"><div class="ibw-note" id="dd-wt-est-note" style="margin-top:2px"></div></div>
+      <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="backpopulateHeight(this.value);calcBodyWeights()"></div>
       <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span></div>
       <div class="field"><label>Search all drugs</label><input type="text" id="drug-search" placeholder="Filter across all categories…" style="width:240px" oninput="filterDrugs()"></div>
     </div>
@@ -1778,7 +1778,7 @@ const {
   fmtN, roundHalfUp,
   devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM,
   ageFromDOB, normaliseAge,
-  aplsWeight, aplsFormula, APLS_MAX_MONTHS,
+  aplsWeight, aplsFormula, paedWeight, APLS_MAX_MONTHS,
   parseDoseRange, calcDose, maintenanceFluid, MAINTENANCE_KEY,
   airwayAgeFromWeight, INFANT_ETT, COLE_MIN_AGE_YEARS, AIRWAY_MAX_AGE_YEARS,
   methadoneToOMEDD, ripamontiRatio, RIPAMONTI_BANDS,
@@ -2039,6 +2039,24 @@ function updateEmergencyWeightDoses() {
                           ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
 }
 
+// Shown beside the drugs-tab and LA-tab weight fields when the only weight
+// known is an age-derived APLS estimate. The estimate is never written into
+// the field itself: these are dosing inputs whose "actual weight" semantics
+// (F1, F4) matter, so it is offered as a hint the user must confirm by typing
+// a number, not a value that silently drives a calculation.
+function showWeightEstimateHint(inputId, noteId, isEstimate, effectiveWt) {
+  var input = document.getElementById(inputId);
+  var note  = document.getElementById(noteId);
+  if (!input || !note) return;
+  if (isEstimate && !input.value) {
+    input.placeholder = '~' + Math.round(effectiveWt);
+    note.textContent  = '~' + Math.round(effectiveWt) + ' kg from age (APLS estimate) — enter to use';
+  } else {
+    if (!input.value) input.placeholder = '70';
+    note.textContent = '';
+  }
+}
+
 function globalPatientUpdate() {
   var wt  = parseFloat(document.getElementById('g-wt').value);
   var ht  = parseFloat(document.getElementById('g-ht').value);
@@ -2046,7 +2064,21 @@ function globalPatientUpdate() {
   var yr  = parseInt(document.getElementById('g-yr').value) || 0;
   var mo  = parseInt(document.getElementById('g-mo').value) || 0;
 
-  // Propagate to other tabs
+  // Effective weight: the actual entered weight if there is one, otherwise an
+  // APLS estimate from age (null if no age is known, or the age falls outside
+  // APLS's 3 months - 12 years range — see F1). Previously every box on this
+  // card, and every other tab, keyed off ACTUAL weight only, so entering just
+  // an infant's age computed no weight anywhere outside the paediatric tab,
+  // which already estimates internally.
+  var effectiveWt = paedWeight(yr, mo, wt || null);
+  var isEstimate  = !wt && effectiveWt != null;
+
+  // Propagate to other tabs. Actual weight/height fan out exactly as before.
+  // An estimate is never written into another tab's input as if it were a
+  // real entry — instead it appears as a placeholder + note, via
+  // showWeightEstimateHint() below, on the tabs that have no age input of
+  // their own (the adult drug table, the LA calculator) and so would
+  // otherwise show nothing at all for a child known only by age.
   ['dd-wt','pd-wt'].forEach(function(id){ var el=document.getElementById(id); if(el&&wt) el.value=wt; });
   var laHt=document.getElementById('la-ht'); if(laHt&&ht) laHt.value=ht;
   var laWt=document.getElementById('la-wt'); if(laWt&&wt) laWt.value=wt;
@@ -2057,6 +2089,9 @@ function globalPatientUpdate() {
   // owned by syncAge(), which keeps both cards in step in both directions.
   var laSex=document.getElementById('la-sex'); if(laSex&&sex) laSex.value=sex;
 
+  showWeightEstimateHint('dd-wt', 'dd-wt-est-note', isEstimate, effectiveWt);
+  showWeightEstimateHint('la-wt', 'la-wt-est-note', isEstimate, effectiveWt);
+
   // Trigger calcs in other tabs
   if(wt) filterDrugs();
   calcPdAge(); calcPaed();
@@ -2066,21 +2101,23 @@ function globalPatientUpdate() {
 
   // Body weight boxes
   var boxes = document.getElementById('g-bw-boxes');
-  if (!wt) { if(boxes) boxes.style.display='none'; return; }
+  if (!effectiveWt) { if(boxes) boxes.style.display='none'; return; }
   boxes.style.display = 'grid';
 
   function rnd(v){ return Math.round(v); }
 
   // TBW
-  document.getElementById('g-tbw').textContent = rnd(wt) + ' kg';
+  document.getElementById('g-tbw').textContent = rnd(effectiveWt) + ' kg';
+  var tbwNote = document.getElementById('g-tbw-note');
+  if (tbwNote) tbwNote.textContent = isEstimate ? 'kg · APLS estimate' : 'kg (entered)';
 
   // IBW (Devine) — needs height, and only above 152.4 cm
   var ibwEl = document.getElementById('g-ibw');
   var ibwNote = document.getElementById('g-ibw-note');
   if (ht) {
     var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
-    var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
-    var abwM = adjustedBW(wt, ht, 'm'),  abwF = adjustedBW(wt, ht, 'f');
+    var lbwM = janmahasatianLBW(effectiveWt, ht, 'm'), lbwF = janmahasatianLBW(effectiveWt, ht, 'f');
+    var abwM = adjustedBW(effectiveWt, ht, 'm'),  abwF = adjustedBW(effectiveWt, ht, 'f');
     var lbwEl  = document.getElementById('g-lbw'),  lbwNote = document.getElementById('g-lbw-note');
     var abwEl  = document.getElementById('g-abw'),  abwNote = document.getElementById('g-abw-note');
 
@@ -2099,7 +2136,7 @@ function globalPatientUpdate() {
       ibwEl.textContent = pair(ibwM, ibwF, ' kg');  ibwNote.textContent = who('Devine');
       abwEl.textContent = pair(abwM, abwF, ' kg');
       var usedIbw = sex === 'm' ? ibwM : sex === 'f' ? ibwF : Math.min(ibwM, ibwF);
-      abwNote.textContent = wt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
+      abwNote.textContent = effectiveWt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
     }
     // LBW is valid at any height
     lbwEl.textContent = pair(lbwM, lbwF, ' kg');  lbwNote.textContent = who('Janmahasatian');
@@ -2355,10 +2392,7 @@ function getPdWt() {
   const yr       = parseInt(document.getElementById('pd-yr').value) || 0;
   const mo       = parseInt(document.getElementById('pd-mo').value) || 0;
   const actualWt = parseFloat(document.getElementById('pd-wt').value) || null;
-  if (actualWt) return actualWt;
-  const totalMonths = yr * 12 + mo;
-  if (totalMonths === 0) return null;
-  return aplsWeight(totalMonths);
+  return paedWeight(yr, mo, actualWt);
 }
 
 const PD_CATS = {
@@ -4314,6 +4348,20 @@ function backpopulateWeight(val) {
   var gWt = document.getElementById('g-wt');
   if (gWt && !gWt.value) {
     gWt.value = w;
+    globalPatientUpdate();
+  }
+}
+
+// Mirrors backpopulateWeight: a height typed on the drugs or LA tab reaches the
+// home card (if it doesn't already have one), which then fans it back out to
+// every other tab - the same loop weight already used, closing the gap for
+// height.
+function backpopulateHeight(val) {
+  var h = parseFloat(val);
+  if (!h) return;
+  var gHt = document.getElementById('g-ht');
+  if (gHt && !gHt.value) {
+    gHt.value = h;
     globalPatientUpdate();
   }
 }
