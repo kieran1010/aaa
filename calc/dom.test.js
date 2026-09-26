@@ -507,6 +507,30 @@ test('F31: an actual weight typed on the home card reaches every tab (forward di
   is(p.val('la-sex'), 'f');
 });
 
+test('F33: resetPatientDetails clears weight/height/sex/age everywhere, not just where it was called', () => {
+  // Now that every copy of these fields is kept in sync, a "Reset" button on
+  // any one tab has to clear the shared patient everywhere — clearing only
+  // the fields on the tab it lives on would leave every other tab showing
+  // the old values again the moment you switch to it.
+  const p = page()
+    .set('g-wt', 82).set('g-ht', 178).change('g-sex', 'f')
+    .set('g-yr', 5).set('g-mo', 6);
+  p.W.resetPatientDetails();
+  ['g-wt', 'g-ht', 'dd-wt', 'dd-ht', 'la-wt', 'la-ht', 'pd-wt'].forEach(id => is(p.val(id), '', id + ':'));
+  ['g-sex', 'la-sex'].forEach(id => is(p.val(id), '', id + ':'));
+  ['g-yr', 'g-mo', 'pd-yr', 'pd-mo'].forEach(id => is(p.val(id), '', id + ':'));
+  is(p.d.getElementById('g-bw-boxes').style.display, 'none', 'home body-weight boxes hide:');
+  is(p.d.getElementById('dd-bw-display').style.display, 'none', 'drugs-tab IBW/LBW/ABW box hides:');
+});
+
+test('F33: the LA tab\'s own Reset button also clears the whole shared patient', () => {
+  const p = page().set('g-wt', 82).set('g-ht', 178).change('g-sex', 'f');
+  p.W.resetLA();
+  is(p.val('g-wt'), '', 'home card weight cleared, not just la-wt:');
+  is(p.val('dd-wt'), '', 'and the drugs tab:');
+  is(p.val('g-sex'), '', 'sex cleared too:');
+});
+
 test('F31: getPdWt is no longer a second copy of the weight-selection logic', () => {
   // getPdWt() used to reimplement "actual, else APLS estimate" by hand instead
   // of calling the shared paedWeight(). Same behaviour, checked here so a

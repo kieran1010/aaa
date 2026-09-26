@@ -310,7 +310,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
           <option value="f">Female</option>
         </select>
       </div>
-      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note"></div></div>
+      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div style="display:flex;align-items:baseline;gap:6px;white-space:nowrap"><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note" style="margin-top:0"></div></div></div>
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetLA()">Reset</button>
     </div>
@@ -563,6 +563,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
         <label>Months</label>
         <input type="number" id="g-mo" placeholder="0" min="0" max="1440" style="width:55px" oninput="syncAge('g')">
       </div>
+      <div style="flex:1"></div>
+      <button class="btn" style="align-self:flex-end" onclick="resetPatientDetails()">Reset</button>
     </div>
     <div id="g-bw-boxes" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
       <div class="ibw-box"><div class="ibw-lbl">Total body weight</div><div class="ibw-val" id="g-tbw">—</div><div class="ibw-note" id="g-tbw-note">kg (entered)</div></div>
@@ -1589,6 +1591,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('dd-ht')"></div>
       <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span></div>
       <div class="field"><label>Search all drugs</label><input type="text" id="drug-search" placeholder="Filter across all categories…" style="width:240px" oninput="filterDrugs()"></div>
+      <div style="flex:1"></div>
+      <button class="btn" style="align-self:flex-end" onclick="resetPatientDetails()">Reset</button>
     </div>
   </div>
   <div class="cat-wrap" id="dd-cats"></div>
@@ -2324,10 +2328,30 @@ function addExtraDrug() {
   calcLA();
 }
 
+// Weight, height, sex and age are now shared across every tab (syncWeight/
+// syncHeight/syncSex/syncAge), so a "Reset" button on any one of them has to
+// clear the patient everywhere, not just the fields on that tab — otherwise
+// switching tabs after a reset would show the old values right back again.
+function resetPatientDetails() {
+  ['g-wt', 'g-ht', 'dd-wt', 'dd-ht', 'la-wt', 'la-ht', 'pd-wt'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['g-sex', 'la-sex'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['g-yr', 'g-mo', 'pd-yr', 'pd-mo'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var dob = document.getElementById('g-dob');
+  if (dob) dob.value = '';
+  globalPatientUpdate();
+}
+
 function resetLA() {
-  ['la-ht', 'la-wt'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('la-sex').value = '';
-  document.getElementById('ibw-used').textContent = '-';
+  resetPatientDetails();
   laRows = [
     { key: 'lig',    conc: 1,   id: 1 },
     { key: 'ligadr', conc: 1,   id: 2 },
