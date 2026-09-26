@@ -301,10 +301,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card">
     <div class="slabel">Patient</div>
     <div class="row">
-      <div class="field"><label>Height (cm)</label><input type="number" id="la-ht" placeholder="170" min="100" max="220" style="width:88px" oninput="backpopulateHeight(this.value);calcIBW()"></div>
-      <div class="field"><label>Weight (kg)</label><input type="number" id="la-wt" placeholder="70" min="1" max="250" style="width:88px" oninput="backpopulateWeight(this.value);calcIBW()"><div class="ibw-note" id="la-wt-est-note" style="margin-top:2px"></div></div>
+      <div class="field"><label>Height (cm)</label><input type="number" id="la-ht" placeholder="170" min="100" max="220" style="width:88px" oninput="syncHeight('la-ht')"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="la-wt" placeholder="70" min="1" max="250" style="width:88px" oninput="syncWeight('la-wt')"><div class="ibw-note" id="la-wt-est-note" style="margin-top:2px"></div></div>
       <div class="field"><label>Sex</label>
-        <select id="la-sex" style="width:100px" onchange="calcIBW()">
+        <select id="la-sex" style="width:100px" onchange="syncSex('la-sex')">
           <option value="">- select -</option>
           <option value="m">Male</option>
           <option value="f">Female</option>
@@ -369,7 +369,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <div class="row" style="margin-bottom:12px">
       <div class="field"><label>Years</label><input type="number" id="pd-yr" placeholder="0" min="0" max="18" style="width:70px" oninput="syncAge('pd')"></div>
       <div class="field"><label>Months</label><input type="number" id="pd-mo" placeholder="0" min="0" max="600" style="width:70px" oninput="syncAge('pd')"></div>
-      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.4" max="150" step="0.1" style="width:90px" oninput="backpopulateWeight(this.value);calcPdAge()"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="pd-wt" placeholder="optional" min="0.4" max="150" step="0.1" style="width:90px" oninput="syncWeight('pd-wt')"></div>
     </div>
     <div id="pd-wt-summary" style="display:none">
       <div class="ibw-row" style="margin-top:0">
@@ -537,15 +537,15 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <div class="row" style="align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div class="field">
         <label>Weight (kg)</label>
-        <input type="number" id="g-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="syncWeight('g-wt')">
       </div>
       <div class="field">
         <label>Height (cm)</label>
-        <input type="number" id="g-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="globalPatientUpdate()">
+        <input type="number" id="g-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('g-ht')">
       </div>
       <div class="field">
         <label>Sex</label>
-        <select id="g-sex" style="width:100px" onchange="globalPatientUpdate()">
+        <select id="g-sex" style="width:100px" onchange="syncSex('g-sex')">
           <option value="">Unknown</option>
           <option value="m">Male</option>
           <option value="f">Female</option>
@@ -1585,8 +1585,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   <div class="card" style="margin-bottom:12px">
     <div class="slabel">Patient</div>
     <div class="row" style="align-items:flex-end;gap:12px">
-      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="backpopulateWeight(this.value);filterDrugs();calcBodyWeights()"><div class="ibw-note" id="dd-wt-est-note" style="margin-top:2px"></div></div>
-      <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="backpopulateHeight(this.value);calcBodyWeights()"></div>
+      <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="syncWeight('dd-wt')"><div class="ibw-note" id="dd-wt-est-note" style="margin-top:2px"></div></div>
+      <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('dd-ht')"></div>
       <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span></div>
       <div class="field"><label>Search all drugs</label><input type="text" id="drug-search" placeholder="Filter across all categories…" style="width:240px" oninput="filterDrugs()"></div>
     </div>
@@ -2074,29 +2074,28 @@ function globalPatientUpdate() {
   var effectiveWt = paedWeight(yr, mo, wt || null);
   var isEstimate  = !wt && effectiveWt != null;
 
-  // Propagate to other tabs. Actual weight/height fan out exactly as before.
-  // An estimate is never written into another tab's input as if it were a
-  // real entry — instead it appears as a placeholder + note, via
+  // Actual weight/height/sex mirroring across tabs is owned by syncWeight(),
+  // syncHeight() and syncSex() (below), which run before this function and
+  // keep every copy — including g-wt/g-ht/g-sex themselves — in step in both
+  // directions. This function only reacts to the current (already-synced)
+  // values: it derives the estimate and re-runs every calc that depends on
+  // patient data. An estimate is never written into another tab's input as if
+  // it were a real entry — instead it appears as a placeholder + note, via
   // showWeightEstimateHint() below, on the tabs that have no age input of
   // their own (the adult drug table, the LA calculator) and so would
   // otherwise show nothing at all for a child known only by age.
-  ['dd-wt','pd-wt'].forEach(function(id){ var el=document.getElementById(id); if(el&&wt) el.value=wt; });
-  var laHt=document.getElementById('la-ht'); if(laHt&&ht) laHt.value=ht;
-  var laWt=document.getElementById('la-wt'); if(laWt&&wt) laWt.value=wt;
-  var ddHt=document.getElementById('dd-ht'); if(ddHt&&ht) ddHt.value=ht;
-  // Age is NOT propagated from here. It used to be, unconditionally, so any
-  // change to weight/height/sex wrote parseInt('')||0 into the paediatric age
-  // fields and silently wiped an age the user had already entered. Age is now
-  // owned by syncAge(), which keeps both cards in step in both directions.
-  var laSex=document.getElementById('la-sex'); if(laSex&&sex) laSex.value=sex;
+  // Age is NOT mirrored from here — it's owned by syncAge(), which keeps both
+  // cards in step in both directions without wiping an age the user typed.
 
   showWeightEstimateHint('dd-wt', 'dd-wt-est-note', isEstimate, effectiveWt);
   showWeightEstimateHint('la-wt', 'la-wt-est-note', isEstimate, effectiveWt);
 
-  // Trigger calcs in other tabs
-  if(wt) filterDrugs();
+  // Trigger calcs in other tabs — always, so a field cleared on one tab blanks
+  // its derived displays everywhere else too, not just where it was cleared.
+  filterDrugs();
+  calcBodyWeights();
   calcPdAge(); calcPaed();
-  if(ht||wt) { try{ calcIBW(); }catch(e){} }
+  try{ calcIBW(); }catch(e){}
 
   updateEmergencyWeightDoses();
 
@@ -3353,7 +3352,7 @@ function calcOpioid() {
 
     return `<tr style="${bg}${isRef ? ';border-left:2px solid var(--blue2)' : ''}">
       <td style="padding:8px 14px;font-size:13px;font-weight:${isRef?'500':'400'};color:${isRef?'var(--blue)':'var(--text)'};border-bottom:1px solid var(--bg4)">${op.label}${isRef?' .':''}${op.warning ? '<br><span style="font-size:10px;color:var(--amber);font-weight:400">' + op.warning + '</span>' : ''}</td>
-      <td style="padding:8px 10px;font-size:12px;color:var(--text2);text-align:right;border-bottom:1px solid var(--bg4)">${op.isMethadone ? '2.5 mg' : op.equiv + ' ' + op.unit}</td>
+      <td style="padding:8px 10px;font-size:12px;color:var(--text2);text-align:right;border-bottom:1px solid var(--bg4)">${op.isMethadone ? '2.5 mg' : fmtN(op.equiv) + ' ' + op.unit}</td>
       <td style="padding:8px 14px;font-size:13px;font-weight:500;color:${hasCalc?(isRef?'var(--blue)':'var(--green)'):'var(--text3)'};text-align:right;border-bottom:1px solid var(--bg4)">${hasCalc ? calcStr : '-'}</td>
     </tr>`;
   }).join('');
@@ -4343,28 +4342,56 @@ function showEasterEgg() {
   });
 }
 
-function backpopulateWeight(val) {
-  var w = parseFloat(val);
-  if (!w) return;
-  var gWt = document.getElementById('g-wt');
-  if (gWt && !gWt.value) {
-    gWt.value = w;
-    globalPatientUpdate();
-  }
+// Weight, height and sex each live on several tabs (Home, Drug Dosing, LA
+// Calculator, and weight also on Paediatrics). These three functions keep
+// every copy of a field mirrored in both directions: editing any one of them
+// writes the new value into all the others and re-runs globalPatientUpdate()
+// so every derived display (dosing tables, IBW/LBW/ABW boxes, etc.) picks it
+// up immediately. The field the user is actively typing in is left alone —
+// only the OTHER copies are overwritten — so a decimal in progress (e.g.
+// "5.") is never clobbered by re-parsing the value back into the field being
+// typed into.
+//
+// Previously (F31 and its follow-up) each of dd-wt/la-wt/pd-wt/dd-ht/la-ht
+// only ever wrote its value into g-wt/g-ht ONCE, and only if that field was
+// still empty — so the very first entry fanned out correctly, but editing a
+// value again on any tab after that (including on Home itself) updated only
+// the field being typed into and silently went out of sync everywhere else.
+// Sex had no back-channel at all: selecting it on the LA Calculator never
+// reached Home or anywhere else.
+function syncWeight(originId) {
+  var origin = document.getElementById(originId);
+  var w = parseFloat(origin ? origin.value : '');
+  var v = isNaN(w) ? '' : w;
+  ['g-wt', 'dd-wt', 'la-wt', 'pd-wt'].forEach(function (id) {
+    if (id === originId) return;
+    var el = document.getElementById(id);
+    if (el) el.value = v;
+  });
+  globalPatientUpdate();
 }
 
-// Mirrors backpopulateWeight: a height typed on the drugs or LA tab reaches the
-// home card (if it doesn't already have one), which then fans it back out to
-// every other tab - the same loop weight already used, closing the gap for
-// height.
-function backpopulateHeight(val) {
-  var h = parseFloat(val);
-  if (!h) return;
-  var gHt = document.getElementById('g-ht');
-  if (gHt && !gHt.value) {
-    gHt.value = h;
-    globalPatientUpdate();
-  }
+function syncHeight(originId) {
+  var origin = document.getElementById(originId);
+  var h = parseFloat(origin ? origin.value : '');
+  var v = isNaN(h) ? '' : h;
+  ['g-ht', 'dd-ht', 'la-ht'].forEach(function (id) {
+    if (id === originId) return;
+    var el = document.getElementById(id);
+    if (el) el.value = v;
+  });
+  globalPatientUpdate();
+}
+
+function syncSex(originId) {
+  var origin = document.getElementById(originId);
+  var v = origin ? origin.value : '';
+  ['g-sex', 'la-sex'].forEach(function (id) {
+    if (id === originId) return;
+    var el = document.getElementById(id);
+    if (el) el.value = v;
+  });
+  globalPatientUpdate();
 }
 
 </script>

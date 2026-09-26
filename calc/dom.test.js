@@ -437,10 +437,49 @@ test('F31: height now backpopulates from the drugs tab to the home card and out 
   is(p.val('la-ht'), '165', 'and fans back out to the LA tab:');
 });
 
-test('F31: height backpopulates from the LA tab too, and does not clobber an existing value', () => {
+test('F32: height backpopulates from the LA tab too, live, even once the home card already has a value', () => {
+  // Was the reported bug: syncWeight/syncHeight (formerly backpopulateWeight/
+  // backpopulateHeight) only ever wrote into g-wt/g-ht ONCE, and only while
+  // that field was still empty. So the first entry fanned out fine, but
+  // editing the value again — on ANY tab, including a second edit on the
+  // very tab that set it first — went out of sync everywhere else. Sync must
+  // keep working after the home card already holds a value, not just before.
   const p = page().set('g-ht', 180);
-  p.set('la-ht', 165);              // home already has a height — must not be overwritten
-  is(p.val('g-ht'), '180', 'home card height is untouched:');
+  p.set('la-ht', 165);
+  is(p.val('g-ht'), '165', 'home card height follows the new entry:');
+  is(p.val('dd-ht'), '165', 'and the drugs tab:');
+});
+
+test('F32: re-editing a weight after the first sync still fans out everywhere', () => {
+  const p = page().set('dd-wt', 55);   // first entry: fans out as before
+  is(p.val('g-wt'), '55'); is(p.val('la-wt'), '55'); is(p.val('pd-wt'), '55');
+  p.set('dd-wt', 60);                  // second edit, same field — must not stall
+  is(p.val('g-wt'), '60', 'home card follows the correction:');
+  is(p.val('la-wt'), '60', 'LA tab follows it too:');
+  is(p.val('pd-wt'), '60', 'paediatric tab follows it too:');
+});
+
+test('F32: a weight typed directly on the home card after another tab set it first still overwrites everywhere', () => {
+  const p = page().set('la-wt', 60);
+  p.set('g-wt', 65);
+  is(p.val('dd-wt'), '65'); is(p.val('la-wt'), '65'); is(p.val('pd-wt'), '65');
+});
+
+test('F32: sex now syncs from the LA tab back to the home card (previously one-way only)', () => {
+  // g-sex -> la-sex worked via globalPatientUpdate(); the reverse had no
+  // wiring at all — selecting a sex on the LA calculator never left that tab.
+  const p = page();
+  p.change('la-sex', 'f');
+  is(p.val('g-sex'), 'f', 'reaches the home card:');
+});
+
+test('F32: sex still syncs forward from the home card, and a later change on either side wins', () => {
+  const p = page().change('g-sex', 'm');
+  is(p.val('la-sex'), 'm');
+  p.change('la-sex', 'f');
+  is(p.val('g-sex'), 'f', 'home card follows a later LA-tab change:');
+  p.change('g-sex', 'm');
+  is(p.val('la-sex'), 'm', 'and the LA tab follows a later home-card change back:');
 });
 
 test('F31: DOB on the home card flows through to age, weight estimate, and every tab', () => {
