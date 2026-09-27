@@ -22,13 +22,19 @@ textarea{resize:vertical}
 button{font-family:inherit;cursor:pointer;font-size:13px}
 .app{background:var(--bg);min-height:100vh}
 .hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center}
-.hlogo{display:flex;align-items:flex-end;gap:9px}
-.hlogo-icon{width:26px;height:26px;flex-shrink:0}
-.hname{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.02em}
-.htag{font-size:11px;color:var(--text3);margin-left:6px;font-weight:400;padding-bottom:1px}
-.hmed{font-size:9px;color:var(--blue);letter-spacing:0.12em;font-weight:600;text-transform:uppercase;margin-top:1px}
-.hdivider{color:var(--border2);font-size:20px;margin:0 10px;align-self:center;font-weight:300;line-height:1}
-.hprod{font-size:17px;font-weight:600;color:var(--text);letter-spacing:-0.01em}
+/* Hypnos Medical header lockup, per the Hypnos Medical brand kit (horizontal, on dark).
+   Fonts are embedded, subset to the glyphs of "Hypnos", "MEDICAL" and "Vantage" only
+   (Gelasio 400 / Geist 600, SIL OFL), so the single file still works offline.
+   Changing the product name means re-subsetting; don't hand-change sizes or colours. */
+@font-face{font-family:"HM Gelasio";font-weight:400;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,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) format("woff2")}
+@font-face{font-family:"HM Geist";font-weight:600;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,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) format("woff2")}
+.hlogo{display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
+.hm-moon{display:block;flex:none;width:22px;height:22px;fill:#fff}
+.hm-word{display:flex;flex-direction:column;line-height:1.05;margin-left:10px}
+.hm-hypnos{font-family:"HM Gelasio",Georgia,"Times New Roman",serif;font-weight:400;font-size:13px;letter-spacing:0.02em;color:#fff}
+.hm-medical{font-family:"HM Geist",Arial,Helvetica,sans-serif;font-weight:600;font-size:8px;letter-spacing:0.18em;margin-right:-0.18em;text-transform:uppercase;color:#9babb8}
+.hm-rule{display:block;flex:none;width:1px;height:26px;margin:0 10px;background:rgba(255,255,255,0.25)}
+.hm-product{font-family:"HM Geist",Arial,Helvetica,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.015em;line-height:1;color:#fff}
 .nav-primary{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 18px;gap:2px;overflow-x:auto}
 .nav-tab{padding:11px 15px;font-size:13px;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-weight:400;transition:color 0.15s}
 .nav-tab:hover{color:var(--text2)}
@@ -134,9 +140,9 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 /* Home screen */
 .home-hero{text-align:center;padding:36px 16px 24px;margin-bottom:20px}
 .home-hero-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px;margin-left:-28px}
-.home-hero-icon{width:44px;height:44px}
-.home-h1{font-size:34px;font-weight:700;color:var(--text);letter-spacing:-0.04em}
-.home-sub{font-size:13px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:0.08em}
+.home-hero-icon{width:40px;height:40px;flex:none}
+/* Product-name hero (brand kit "hero display"): Gelasio, white */
+.home-h1{font-family:"HM Gelasio",Georgia,"Times New Roman",serif;font-size:40px;font-weight:400;color:#fff;letter-spacing:-0.01em;line-height:1.1}
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px}
 .home-tile{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px 14px;cursor:pointer;text-decoration:none;display:block;transition:border-color 0.15s,background 0.15s,transform 0.1s;box-shadow:0 2px 8px rgba(0,0,0,0.25)}
 .home-tile:hover{border-color:var(--blue);background:var(--bg4);transform:translateY(-1px)}
@@ -185,14 +191,6 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 @media (max-width: 700px) {
   /* Prevent iOS input zoom — inputs must be >=16px */
   input, select, textarea { font-size: 16px !important; }
-
-  /* Header */
-  .htag { display: none; }
-  .hmed { display: none; }
-  .hdivider { margin: 0 7px; font-size: 16px; }
-  .hname { font-size: 15px; }
-  .hprod { font-size: 15px; }
-  .hlogo-icon { width: 22px; height: 22px; }
 
   /* Nav tabs — bigger touch targets */
   .nav-tab { padding: 12px 11px; font-size: 12px; }
@@ -248,23 +246,21 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   #tab-emergency > div:first-child button { font-size: 11px; padding: 6px 9px; }
 }
 </style>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' fill='%230f3557'/></svg>">
+<!-- Hypnos Medical icon: real files, not a data: URI, so Google Search can show it -->
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-96.png" type="image/png" sizes="96x96">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 <div class="app">
 
 <!-- HEADER -->
 <div class="hdr">
-  <a class="hlogo" href="https://hypnos.one" target="_self" style="text-decoration:none">
-    <svg class="hlogo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
-    </svg>
-    <div style="display:flex;flex-direction:column;line-height:1.1">
-      <span class="hname">Hypnos</span>
-      <span class="hmed">MEDICAL</span>
-    </div>
-    <span class="hdivider">|</span>
-    <span class="hprod">Vantage</span>
+  <a class="hlogo" href="https://hypnos.one" target="_self">
+    <svg class="hm-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.2 0A12 12 0 1 0 23.96 13.29A9.14 9.14 0 0 1 12.2 0Z"/></svg>
+    <span class="hm-word"><span class="hm-hypnos">Hypnos</span><span class="hm-medical">Medical</span></span>
+    <span class="hm-rule" aria-hidden="true"></span><span class="hm-product">Vantage</span>
   </a>
 </div>
 
@@ -517,12 +513,9 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 <div class="page active" id="tab-home">
   <div class="home-hero">
     <div class="home-hero-logo" onclick="window.location.href='https://hypnos.one'" title="Visit hypnos.one">
-      <svg class="home-hero-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#22d3ee"/>
-      </svg>
-      <div class="home-h1">Hypnos</div>
+      <svg class="home-hero-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.2 0A12 12 0 1 0 23.96 13.29A9.14 9.14 0 0 1 12.2 0Z" fill="#fff"/></svg>
+      <div class="home-h1">Vantage</div>
     </div>
-    <div class="home-sub">Vantage</div>
     <div class="home-clock" id="home-clock" onclick="hypnosClick()" title="&#128" style="cursor:pointer">00:00:00</div>
     <div class="home-timer-wrap">
       <span style="font-size:11px;color:var(--text3)">Session</span>
