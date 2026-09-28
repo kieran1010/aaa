@@ -388,19 +388,6 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 </div>
 
 <!-- ══════════════════════════════════════
-     PRE-ASSESSMENT
-═══════════════════════════════════════ -->
-<div class="page" id="tab-pre">
-  <div class="cfw">
-    <div class="cfn">Charted pre-assessment - submits directly to your Charted Google Sheet</div>
-    <iframe class="cfi"
-      src="https://script.google.com/macros/s/AKfycbzG4LpwogJop6vtCviBrp-Ge3oD8RgXBVJ89VXpXqHN9UWixN9teF7b1dP5cPmkjajj9Q/exec"
-      title="Charted pre-assessment">
-    </iframe>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════
      TRIBULATOR
 ═══════════════════════════════════════ -->
 <div class="page" id="tab-trib">
@@ -613,10 +600,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   </div></div>
   
   <div class="ls"><div class="lst">Utilities</div><div class="lgrid">
-    <a class="lcard" href="#" onclick="tribOpen()" id="home-trib-link"><span class="lar">↗</span><div class="lct">Tribulator</div><div class="lcs">PubMed search &amp; paper library</div></a>
-    <a class="lcard" href="#" onclick="chartedOpen()"><span class="lar">↗</span><div class="lct">Pre-assessment</div><div class="lcs">Opens Charted in a new tab</div></a>
-    <a class="lcard" href="#" onclick="gasmanOpen()"><span class="lar">↗</span><div class="lct">Gasman Pulse</div><div class="lcs">Clinical research companion</div></a>
-    <a class="lcard" href="#" onclick="dreamsOpen()"><span class="lar">↗</span><div class="lct">Dreams Lab</div><div class="lcs">Anaesthesia simulator</div></a>
+    <a class="lcard" href="https://tribulator.hypnos.one" target="_blank"><span class="lar">↗</span><div class="lct">Tribulator</div><div class="lcs">PubMed search &amp; paper library</div></a>
+    <a class="lcard" href="https://synapse.hypnos.one" target="_blank"><span class="lar">↗</span><div class="lct">Synapse</div><div class="lcs">Anaesthesia simulator</div></a>
   </div></div>
 </div>
 
@@ -3416,36 +3401,6 @@ function showEmgTab(id, el) {
   document.getElementById('emg-' + id).style.display = 'block';
   el.style.background = 'var(--blue)';
   el.style.color = '#fff';
-}
-
-
-function gasmanOpen() {
-  var pw = prompt('Enter password to access Gasman Pulse:');
-  if (pw === 'default') {
-    window.open('https://script.google.com/a/macros/kieran101.com/s/AKfycbwUpJlsHPA8xv_dzi83AAwwoU_AIpUz4e7-8bcuqNyUFrle0vEYnTYjp81JS8jGfljI/exec', '_blank');
-  } else if (pw !== null) {
-    alert('Incorrect password.');
-  }
-}
-
-
-function dreamsOpen() {
-  window.open('https://kieran1010.github.io/DreamsLab/', '_blank');
-}
-
-function chartedOpen() {
-  var pw = prompt('Enter password:');
-  if (pw === 'default') window.open('https://script.google.com/macros/s/AKfycbzG4LpwogJop6vtCviBrp-Ge3oD8RgXBVJ89VXpXqHN9UWixN9teF7b1dP5cPmkjajj9Q/exec', '_blank');
-  else if (pw !== null) alert('Incorrect password.');
-}
-
-function tribOpen() {
-  var pw = prompt('Enter password to access Tribulator:');
-  if (pw === 'default') {
-    window.open('https://kieran1010.github.io/Tribulator/', '_blank');
-  } else if (pw !== null) {
-    alert('Incorrect password.');
-  }
 }
 
 
