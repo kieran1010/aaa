@@ -118,6 +118,17 @@ test('FIXED F12: IM adrenaline offers 1:1000 first', () => {
   is(a.concs[0].mgml, 1);
 });
 
+test('paediatric Emergency carries suxamethonium, identical to Muscle relaxants', () => {
+  ['Suxamethonium (IV)', 'Suxamethonium (IM)'].forEach(n => {
+    const e = D.PD_CATS['Emergency'].find(d => d.n === n);
+    const m = D.PD_CATS['Muscle relaxants'].find(d => d.n === n);
+    if (!e) throw new Error(n + ' missing from Emergency');
+    is(e.doseStr, m.doseStr, n + ' dose:'); is(e.unit, m.unit); is(e.route, m.route);
+    is(e.maxDose, m.maxDose, n + ' max:');
+    is(JSON.stringify(e.concs), JSON.stringify(m.concs));
+  });
+});
+
 test('paediatric adenosine is correct at 0.1 mg/kg', () => {
   const a = D.PD_DRUGS.find(d => d.n === 'Adenosine');
   is(a.doseStr, '0.1'); is(a.unit, 'mg/kg');
