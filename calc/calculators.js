@@ -57,6 +57,38 @@
     return weightKg > ibw ? ibw + 0.4 * (weightKg - ibw) : weightKg;
   }
 
+  /* ------------------------------------------------- weight plausibility */
+
+  // Flags an entered weight far above what height predicts: BMI >= 40, or
+  // actual weight >= 1.5 x Devine IBW. Thresholds chosen by the app's owner.
+  // Sex unknown -> the lower (female) IBW, as the ABW note above does. IBW is
+  // not evaluated under 152.4 cm, so short patients are judged on BMI alone.
+  // Obesity only: a weight below prediction is not flagged.
+  var OBESITY_BMI = 40;
+  var OBESITY_IBW_RATIO = 1.5;
+
+  function obesityFlag(weightKg, heightCm, sex) {
+    if (!(weightKg > 0) || !(heightCm > 0)) return null;
+    var m = heightCm / 100;
+    var bmi = weightKg / (m * m);
+    var ibwM = devineIBW(heightCm, 'm'), ibwF = devineIBW(heightCm, 'f');
+    var ibw = ibwM == null ? null : sex === 'm' ? ibwM : ibwF;
+    var ratio = ibw == null ? null : weightKg / ibw;
+    var byBmi = bmi >= OBESITY_BMI;
+    var byIbw = ratio != null && ratio >= OBESITY_IBW_RATIO;
+    if (!byBmi && !byIbw) return null;
+    return { bmi: bmi, ibw: ibw, ratio: ratio, byBmi: byBmi, byIbw: byIbw };
+  }
+
+  // Paediatric counterpart: entered weight >= 1.5 x the APLS age estimate.
+  // Age-based, not height-based - the paediatric tab has no height. Only
+  // defined where APLS is (3 months - 12 years); otherwise null.
+  function paedWeightMismatch(actualWt, aplsWt) {
+    if (!(actualWt > 0) || !(aplsWt > 0)) return null;
+    var ratio = actualWt / aplsWt;
+    return ratio >= OBESITY_IBW_RATIO ? { ratio: ratio } : null;
+  }
+
   /* ------------------------------------------------------------------- age */
 
   // The old version clamped the day-of-month borrow with Math.max(0, mo - 1),
@@ -421,6 +453,8 @@
     fmtN: fmtN, roundHalfUp: roundHalfUp,
     devineIBW: devineIBW, janmahasatianLBW: janmahasatianLBW, adjustedBW: adjustedBW,
     DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM,
+    obesityFlag: obesityFlag, paedWeightMismatch: paedWeightMismatch,
+    OBESITY_BMI: OBESITY_BMI, OBESITY_IBW_RATIO: OBESITY_IBW_RATIO,
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     APLS_MAX_MONTHS: APLS_MAX_MONTHS,

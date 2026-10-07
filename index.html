@@ -82,6 +82,7 @@ button{font-family:inherit;cursor:pointer;font-size:13px}
 .svr-ok{color:var(--green)}
 .svr-warn{color:var(--amber)}
 .svr-danger{color:var(--red)}
+.wt-warn{display:none;margin-top:10px;padding:8px 12px;border:1px solid var(--amber);border-radius:6px;background:rgba(245,158,11,0.08);color:var(--amber);font-size:12px;line-height:1.5}
 .ctfw{background:#0a0e14;border-radius:6px;height:12px;overflow:hidden;margin:6px 0}
 .ctff{height:100%;border-radius:6px;transition:width 0.25s,background 0.25s}
 .ctfr{display:flex;justify-content:space-between;font-size:11px;margin-top:3px}
@@ -310,6 +311,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetLA()">Reset</button>
     </div>
+    <div class="wt-warn" id="la-obesity-warn"></div>
   </div>
 
   <div class="card">
@@ -381,6 +383,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
           <div class="ibw-note" id="pd-wt-source-note">-</div>
         </div>
       </div>
+      <div class="wt-warn" id="pd-obesity-warn"></div>
     </div>
   </div>
   <div class="cat-wrap" id="pd-cats"></div>
@@ -552,6 +555,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div class="ibw-box"><div class="ibw-lbl">Lean body weight</div><div class="ibw-val" id="g-lbw">—</div><div class="ibw-note" id="g-lbw-note">Janmahasatian</div></div>
       <div class="ibw-box"><div class="ibw-lbl">Adjusted body weight</div><div class="ibw-val" id="g-abw">—</div><div class="ibw-note" id="g-abw-note"></div></div>
     </div>
+    <div class="wt-warn" id="g-obesity-warn"></div>
   </div>
 
   
@@ -1572,6 +1576,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetPatientDetails()">Reset</button>
     </div>
+    <div class="wt-warn" id="dd-obesity-warn"></div>
   </div>
   <div class="cat-wrap" id="dd-cats"></div>
   <div class="card" style="padding:0;overflow:hidden">
@@ -1760,6 +1765,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 const {
   fmtN, roundHalfUp,
   devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM,
+  obesityFlag, paedWeightMismatch,
   ageFromDOB, normaliseAge,
   aplsWeight, aplsFormula, paedWeight, APLS_MAX_MONTHS,
   parseDoseRange, calcDose, maintenanceFluid, MAINTENANCE_KEY,
@@ -2022,6 +2028,31 @@ function updateEmergencyWeightDoses() {
                           ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
 }
 
+// Entered weight far above what height predicts (BMI >= 40 or >= 1.5 x IBW;
+// see obesityFlag). Actual weight only - never an APLS estimate. Shown on every
+// card that has a height field, since height is synced across all three.
+function updateObesityWarnings(wt, ht, sex, yr, mo) {
+  var f = obesityFlag(wt, ht, sex);
+  var html = '';
+  if (f) {
+    var bits = ['BMI <strong>' + Math.round(f.bmi) + '</strong>'];
+    if (f.ratio != null) {
+      bits.push('<strong>' + f.ratio.toFixed(1) + '&times;</strong> IBW (' + Math.round(f.ibw) + ' kg, Devine' +
+                (sex === 'm' ? ', male' : sex === 'f' ? ', female' : ', female - sex not set') + ')');
+    }
+    var minor = (yr > 0 || mo > 0) && yr < 18;
+    html = '&#9888; Weight is much higher than expected for height: ' + bits.join(' &middot; ') + '. ' +
+           'Consider whether each drug should be dosed on total, ideal, lean or adjusted body weight.' +
+           (minor ? ' (Adult thresholds - interpret with caution under 18.)' : '');
+  }
+  ['g-obesity-warn', 'dd-obesity-warn', 'la-obesity-warn'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = html;
+    el.style.display = html ? 'block' : 'none';
+  });
+}
+
 // Shown beside the drugs-tab and LA-tab weight fields when the only weight
 // known is an age-derived APLS estimate. The estimate is never written into
 // the field itself: these are dosing inputs whose "actual weight" semantics
@@ -2080,6 +2111,7 @@ function globalPatientUpdate() {
   try{ calcIBW(); }catch(e){}
 
   updateEmergencyWeightDoses();
+  updateObesityWarnings(wt, ht, sex, yr, mo);
 
   // Body weight boxes
   var boxes = document.getElementById('g-bw-boxes');
@@ -2387,6 +2419,14 @@ function calcPdAge() {
              : totalMonths > 0 ? 'Under 3 months - enter actual weight'
              : 'Enter weight or age';
 
+  const mismatch = paedWeightMismatch(actualWt, apls);
+  const pdWarn = document.getElementById('pd-obesity-warn');
+  pdWarn.style.display = mismatch ? 'block' : 'none';
+  pdWarn.innerHTML = mismatch
+    ? '&#9888; Entered weight is <strong>' + mismatch.ratio.toFixed(1) + '&times;</strong> the APLS estimate for age (' + apls + ' kg). ' +
+      'Check the weight is correct, and whether doses should use ideal rather than actual weight.'
+    : '';
+
   calcPaed();
 }
 
@@ -2454,6 +2494,10 @@ const PD_CATS = {
     { n: 'Hydrocortisone',          doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL',  mgml: 50  }], note: 'Anaphylaxis, adrenal crisis' },
     { n: 'Metaraminol',             doseStr: '0.01', unit: 'mg/kg',  route: 'iv',   concs: [{ c: '0.5 mg/mL',  mgml: 0.5 }], note: 'Titrate to effect' },
     { n: 'Salbutamol',              doseStr: '10',   unit: 'mcg/kg', route: 'iv',   concs: [{ c: '500 mcg/mL', mgml: 500 }], note: 'Slow IV over 5-10 min' },
+    // Same doses as the 'Muscle relaxants' rows - duplicated here so they are
+    // to hand in a laryngospasm / emergency RSI without switching category.
+    { n: 'Suxamethonium (IM)',      doseStr: '4',    unit: 'mg/kg',  route: 'im',   concs: [{ c: '50 mg/mL', mgml: 50 }], note: 'Laryngospasm / RSI if no IV access' },
+    { n: 'Suxamethonium (IV)',      doseStr: '2',    unit: 'mg/kg',  route: 'iv',   concs: [{ c: '50 mg/mL', mgml: 50 }], maxDose: 150, note: 'Laryngospasm / RSI. Max 150 mg' },
   ],
   'Fluids': [
     { n: 'Albumin 4%',              doseStr: '10',   unit: 'mL/kg',  route: 'iv',   concs: [{ c: '4%', mgml: null }], note: 'Colloid resuscitation' },

@@ -194,6 +194,50 @@ test('FIXED F19: Devine refuses heights below 152.4 cm', () => {
   is(C.adjustedBW(60, 150, 'f'), null, 'ABW declines too, rather than using a bogus IBW:');
 });
 
+/* ========================== weight plausibility ========================== */
+
+test('obesityFlag fires at BMI >= 40 or >= 1.5 x IBW, and not below', () => {
+  is(C.obesityFlag(70, 170, 'm'), null, 'BMI 24, 1.06 x IBW:');
+  is(C.obesityFlag(95, 170, 'm'), null, 'BMI 32.9, 1.44 x IBW:');
+  is(C.obesityFlag(100, 170, 'm').byIbw, true, 'BMI 34.6, 1.51 x IBW:');
+});
+
+test('obesityFlag: IBW ratio alone can trigger it', () => {
+  // 180 cm male: IBW 75 kg. 113 kg = 1.507 x IBW, BMI 34.9
+  const f = C.obesityFlag(113, 180, 'm');
+  is(f.byIbw, true); is(f.byBmi, false);
+  eq(f.ibw, 75, 0.1);
+  is(C.obesityFlag(112, 180, 'm'), null, '1.49 x IBW:');
+});
+
+test('obesityFlag: BMI alone can trigger it, including under 152.4 cm', () => {
+  const f = C.obesityFlag(92.5, 150, 'f');          // BMI 41.1, no Devine
+  is(f.byBmi, true); is(f.ibw, null); is(f.ratio, null);
+  is(C.obesityFlag(89, 150, 'f'), null, 'BMI 39.6:');
+});
+
+test('obesityFlag: unknown sex uses the lower (female) IBW', () => {
+  // 170 cm: IBW female 61.4, male 65.9. 93 kg = 1.51 x F, 1.41 x M
+  is(C.obesityFlag(93, 170, 'm'), null);
+  is(C.obesityFlag(93, 170, '').byIbw, true);
+  is(C.obesityFlag(93, 170, 'f').byIbw, true);
+});
+
+test('obesityFlag declines without weight or height, and never flags low weight', () => {
+  is(C.obesityFlag(NaN, 170, 'm'), null);
+  is(C.obesityFlag(120, NaN, 'm'), null);
+  is(C.obesityFlag(null, null, ''), null);
+  is(C.obesityFlag(30, 180, 'm'), null, 'BMI 9:');
+});
+
+test('paedWeightMismatch fires at >= 1.5 x the APLS estimate', () => {
+  is(C.paedWeightMismatch(14.9, 10), null);
+  eq(C.paedWeightMismatch(15, 10).ratio, 1.5, 1e-9);
+  is(C.paedWeightMismatch(5, 10), null, 'low weight not flagged:');
+  is(C.paedWeightMismatch(30, null), null, 'no APLS estimate (outside 3 mo - 12 y):');
+  is(C.paedWeightMismatch(null, 10), null, 'no weight entered:');
+});
+
 /* ============================== LA toxicity ============================== */
 
 test('LA maxima are the standard ceilings', () => {
