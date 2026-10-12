@@ -219,6 +219,22 @@ test('LBW is declined when it would exceed TBW, and otherwise never does', () =>
   }
 });
 
+test('laWeightBasis gives the weight used and the IBW it was compared with', () => {
+  const b = C.laWeightBasis(160, 90, 'f');
+  eq(b.ibw, 52.4, 0.01); eq(b.used, 52.4, 0.01, 'IBW is the lower:');
+  const c = C.laWeightBasis(170, 45, 'f');
+  eq(c.ibw, 61.4, 0.01); eq(c.used, 45, 0.01, 'actual is the lower:');
+  is(C.laWeightBasis(140, 35, 'f').ibw, null, 'below 152.4 cm:');
+  is(C.laWeightBasis(170, 70, '').ibw, null, 'sex not set:');
+  for (const [h, w, s] of [[160, 90, 'f'], [170, 45, 'f'], [100, 16, 'm'], [180, null, 'm']]) {
+    is(C.laWeightUsed(h, w, s), C.laWeightBasis(h, w, s).used, `laWeightUsed agrees at ${h}/${w}/${s}:`);
+  }
+});
+
+test('isMinor: under 18 only, and unknown age counts as adult', () => {
+  is(C.isMinor(17.99), true); is(C.isMinor(18), false); is(C.isMinor(null), false);
+});
+
 test('formatMF labels each value with its own unit when sex is not set', () => {
   is(C.formatMF(70.4, 65.6, ''), 'M 70 kg · F 66 kg');
   is(C.formatMF(70.4, 65.6, 'm'), '70 kg');

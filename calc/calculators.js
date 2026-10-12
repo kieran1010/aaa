@@ -119,9 +119,15 @@
   // whenever it would exceed TBW. Returns null when declined.
   var LBW_MIN_AGE_YEARS = 18;
 
+  // Devine IBW and ABW are adult formulae too, but are still shown under 18
+  // (where height >= 152.4 cm), with this caveat - the owner's choice, since
+  // they are commonly used in older adolescents.
+  var ADULT_FORMULA_NOTE = 'adult formula, caution <18 y';
+  function isMinor(ageYears) { return ageYears != null && ageYears < LBW_MIN_AGE_YEARS; }
+
   function leanBodyWeight(weightKg, heightCm, sex, ageYears) {
     if (!(weightKg > 0) || !(heightCm > 0)) return null;
-    if (ageYears != null && ageYears < LBW_MIN_AGE_YEARS) return null;
+    if (isMinor(ageYears)) return null;
     var lbw = janmahasatianLBW(weightKg, heightCm, sex);
     return lbw > weightKg ? null : lbw;
   }
@@ -337,14 +343,22 @@
   //      7.5 mg; now it falls back to actual weight.
   var DEVINE_MIN_HEIGHT_CM = 152.4;
 
-  function laWeightUsed(heightCm, weightKg, sex) {
+  // The weight the LA ceiling is calculated on, and the IBW it was compared
+  // with (null where Devine does not apply or sex is not set). The LA tab
+  // needs both, for its "IBW (lower than actual)" note; it used to carry its
+  // own copy of this formula (getIBW) rather than calling it.
+  function laWeightBasis(heightCm, weightKg, sex) {
     var ibw = null;
     if (heightCm && sex && heightCm >= DEVINE_MIN_HEIGHT_CM) {
       ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (heightCm - 152.4)) * 10) / 10;
       if (ibw < 1) ibw = null;
     }
-    if (ibw != null && weightKg) return Math.min(ibw, weightKg);
-    return weightKg || ibw || null;
+    var used = (ibw != null && weightKg) ? Math.min(ibw, weightKg) : (weightKg || ibw || null);
+    return { used: used, ibw: ibw };
+  }
+
+  function laWeightUsed(heightCm, weightKg, sex) {
+    return laWeightBasis(heightCm, weightKg, sex).used;
   }
 
   function laMaxDose(drugKey, weightUsed) {
@@ -506,6 +520,7 @@
     underweightFlag: underweightFlag, estimateHeightMismatch: estimateHeightMismatch,
     UNDERWEIGHT_BMI: UNDERWEIGHT_BMI,
     leanBodyWeight: leanBodyWeight, LBW_MIN_AGE_YEARS: LBW_MIN_AGE_YEARS, formatMF: formatMF,
+    ADULT_FORMULA_NOTE: ADULT_FORMULA_NOTE, isMinor: isMinor,
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     APLS_MAX_MONTHS: APLS_MAX_MONTHS,
@@ -515,7 +530,7 @@
     AIRWAY_MAX_AGE_YEARS: AIRWAY_MAX_AGE_YEARS,
     paracetamolIVDose: paracetamolIVDose,
     airwayAgeFromWeight: airwayAgeFromWeight, airwaySizes: airwaySizes, lmaSize: lmaSize,
-    LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
+    LA_DRUGS: LA_DRUGS, laWeightBasis: laWeightBasis, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
     cumulativeToxicFraction: cumulativeToxicFraction,
     ANZCA_OPIOIDS: ANZCA_OPIOIDS, ANZCA_SOURCE: ANZCA_SOURCE,
     THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,

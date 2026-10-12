@@ -270,6 +270,22 @@ test('LBW is declined under 18 and when it would exceed TBW', () => {
   if (!/exceeds TBW/.test(q.text('g-lbw-note'))) throw new Error(q.text('g-lbw-note'));
 });
 
+test('IBW/ABW carry an adult-formula caveat under 18, on all three tabs', () => {
+  const p = page().set('g-wt', 70).set('g-ht', 170).change('g-sex', 'm').set('g-yr', 15).set('g-mo', 0);
+  is(p.text('g-ibw'), '66 kg', 'still shown:');
+  if (!/adult formula, caution <18 y/.test(p.text('g-ibw-note'))) throw new Error(`ibw note: ${p.text('g-ibw-note')}`);
+  if (!/adult formula, caution <18 y/.test(p.text('g-abw-note'))) throw new Error(`abw note: ${p.text('g-abw-note')}`);
+  p.set('dd-wt', 70).set('dd-ht', 170);
+  is(p.text('dd-bw-minor'), 'IBW/ABW: adult formula, caution <18 y');
+  p.set('la-wt', 70).set('la-ht', 170);
+  is(p.text('ibw-used'), '65.9 kg', 'LA uses IBW, the lower:');
+  is(p.text('ibw-used-minor'), 'IBW: adult formula, caution <18 y');
+  const a = page().set('g-wt', 70).set('g-ht', 170).change('g-sex', 'm');
+  if (/caution/.test(a.text('g-ibw-note'))) throw new Error('adult (no age) should have no caveat');
+  a.set('la-wt', 70).set('la-ht', 170);
+  is(a.text('ibw-used-minor'), '', 'adult LA:');
+});
+
 test('weight that does not fit height is flagged: APLS estimate, and low entered weight', () => {
   const p = page().set('g-ht', 130).change('g-sex', 'm').set('g-yr', 4).set('g-mo', 0);
   if (!/Age and height don't fit/.test(p.text('g-obesity-warn'))) throw new Error(`estimate: ${p.text('g-obesity-warn')}`);

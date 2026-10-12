@@ -1849,10 +1849,18 @@ entered weights only, and only in the heavy direction.
   says the estimate ignores height.
 - Male/female pairs read "M 70 kg · F 66 kg" instead of "70/66 kg", and the
   drugs tab follows the patient-card sex when it is set.
+- Devine IBW and ABW are adult formulae too. They are still shown under 18
+  (from 152.4 cm, where Devine applies) but carry "adult formula, caution
+  <18 y" on the patient card, the drugs tab and the LA tab's weight used.
+- The LA tab's `getIBW()` carried its own copy of the LA weight formula, which
+  `no-duplication.test.js` could not see because it had a different name. It
+  now calls `laWeightBasis()` (which `laWeightUsed()` also uses), and the test
+  now also fails if the Devine or Janmahasatian constants appear in the page.
 
 ## J.3 Verification
 
 | | |
 |---|---|
-| Logic | 68 passed (6 new, incl. a property test that LBW never exceeds TBW) |
-| DOM | 62 passed (3 new; the F14 drugs-tab assertion now expects "45 kg" for a female patient rather than "45/45 kg") |
+| Logic | 70 passed (8 new, incl. a property test that LBW never exceeds TBW) |
+| No duplication | 7 passed (1 new: formula constants absent from the page) |
+| DOM | 63 passed (4 new; the F14 drugs-tab assertion now expects "45 kg" for a female patient rather than "45/45 kg") |

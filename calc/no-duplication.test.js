@@ -46,6 +46,19 @@ test('index.html redefines none of the shared constants', () => {
   if (dup.length) throw new Error(`redefined in index.html: ${dup.join(', ')}`);
 });
 
+// The checks above only catch a copy under the SAME name. The LA tab's getIBW()
+// carried the Devine/LA-weight formula under a different name until it was
+// found by reading the code, so also look for the formulae's own constants.
+test('index.html contains no copy of the body-weight formulae', () => {
+  const fingerprints = {
+    'Devine female base (45.5 kg)': /45\.5/,
+    'Devine per-cm slope (0.906)': /0\.906/,
+    'Janmahasatian (9270 / 6680 / 8780)': /9270|6680|8780/,
+  };
+  const found = Object.keys(fingerprints).filter(k => fingerprints[k].test(inline));
+  if (found.length) throw new Error(`call the module instead: ${found.join(', ')}`);
+});
+
 // The destructuring list is hand-written, so a typo there is a live TypeError.
 function destructuredNames() {
   const m = /const\s*\{([\s\S]*?)\}\s*=\s*Calc\s*;/.exec(inline);

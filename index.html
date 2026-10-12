@@ -314,7 +314,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
           <option value="f">Female</option>
         </select>
       </div>
-      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div style="display:flex;align-items:baseline;gap:6px;white-space:nowrap"><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note" style="margin-top:0"></div></div></div>
+      <div class="ibw-box" style="align-self:flex-end"><div class="ibw-lbl">Weight used</div><div style="display:flex;align-items:baseline;gap:6px;white-space:nowrap"><div class="ibw-val" id="ibw-used">-</div><div class="ibw-note" id="ibw-used-note" style="margin-top:0"></div></div><div class="ibw-note" id="ibw-used-minor" style="margin-top:2px;color:var(--amber)"></div></div>
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetLA()">Reset</button>
     </div>
@@ -1578,7 +1578,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <div class="row" style="align-items:flex-end;gap:12px">
       <div class="field"><label>Weight (kg)</label><input type="number" id="dd-wt" placeholder="70" min="1" max="250" style="width:90px" oninput="syncWeight('dd-wt')"><div class="ibw-note" id="dd-wt-est-note" style="margin-top:2px"></div></div>
       <div class="field"><label>Height (cm)</label><input type="number" id="dd-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('dd-ht')"></div>
-      <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span></div>
+      <div id="dd-bw-display" style="display:none;background:var(--bg3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text2);line-height:1.8"><span style="color:var(--text3);font-size:11px;margin-right:8px">IBW</span><span id="dd-ibw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">LBW</span><span id="dd-lbw" style="color:var(--blue);font-weight:500;margin-right:16px"></span><span style="color:var(--text3);font-size:11px;margin-right:8px">ABW</span><span id="dd-abw" style="color:var(--blue);font-weight:500"></span><span id="dd-bw-minor" style="color:var(--amber);font-size:11px;margin-left:12px"></span></div>
       <div class="field"><label>Search all drugs</label><input type="text" id="drug-search" placeholder="Filter across all categories…" style="width:240px" oninput="filterDrugs()"></div>
       <div style="flex:1"></div>
       <button class="btn" style="align-self:flex-end" onclick="resetPatientDetails()">Reset</button>
@@ -1773,7 +1773,8 @@ const {
   fmtN, roundHalfUp,
   devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM,
   obesityFlag, paedWeightMismatch, underweightFlag, estimateHeightMismatch,
-  UNDERWEIGHT_BMI, leanBodyWeight, LBW_MIN_AGE_YEARS, formatMF,
+  UNDERWEIGHT_BMI, leanBodyWeight, formatMF, ADULT_FORMULA_NOTE, isMinor,
+  laWeightBasis,
   ageFromDOB, normaliseAge,
   aplsWeight, aplsFormula, paedWeight, APLS_MAX_MONTHS,
   parseDoseRange, calcDose, maintenanceFluid, MAINTENANCE_KEY,
@@ -2036,9 +2037,17 @@ function updateEmergencyWeightDoses() {
                           ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
 }
 
+// Age from the patient card in years, or null if none entered (treated as
+// adult). The drugs and LA tabs have no age fields of their own.
+function patientAgeYears() {
+  var yr = parseInt((document.getElementById('g-yr') || {}).value) || 0;
+  var mo = parseInt((document.getElementById('g-mo') || {}).value) || 0;
+  return (yr > 0 || mo > 0) ? yr + mo / 12 : null;
+}
+
 // Note under the LBW value: why it is missing, if it is.
 function lbwNoteFor(m, f, sex, ageYrs, wt, ht, who) {
-  if (ageYrs != null && ageYrs < LBW_MIN_AGE_YEARS) return 'Janmahasatian not valid <18 y';
+  if (isMinor(ageYrs)) return 'Janmahasatian not valid <18 y';
   var bmi = Math.round(wt / ((ht / 100) * (ht / 100)));
   var shown = sex === 'm' ? [m] : sex === 'f' ? [f] : [m, f];
   if (shown.every(function (v) { return v == null; })) return 'Not valid: exceeds TBW at BMI ' + bmi;
@@ -2175,10 +2184,11 @@ function globalPatientUpdate() {
       ibwEl.textContent = '—';  ibwNote.textContent = IBW_TOO_SHORT_NOTE;
       abwEl.textContent = '—';  abwNote.textContent = IBW_TOO_SHORT_NOTE;
     } else {
-      ibwEl.textContent = pair(ibwM, ibwF);  ibwNote.textContent = who('Devine');
+      var caveat = isMinor(ageYrs) ? ' · ' + ADULT_FORMULA_NOTE : '';
+      ibwEl.textContent = pair(ibwM, ibwF);  ibwNote.textContent = who('Devine') + caveat;
       abwEl.textContent = pair(abwM, abwF);
       var usedIbw = sex === 'm' ? ibwM : sex === 'f' ? ibwF : Math.min(ibwM, ibwF);
-      abwNote.textContent = effectiveWt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
+      abwNote.textContent = (effectiveWt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW') + caveat;
     }
     // LBW (Janmahasatian): adults only, and never above TBW - see leanBodyWeight
     lbwEl.textContent = pair(lbwM, lbwF);
@@ -2226,12 +2236,7 @@ function getIBW() {
   const ht  = parseFloat(document.getElementById('la-ht').value)    || null;
   const wt  = parseFloat(document.getElementById('la-wt').value)    || null;
   const sex = document.getElementById('la-sex').value;
-  let ibw = null;
-  if (ht && sex && ht >= DEVINE_MIN_HEIGHT_CM) {
-    ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (ht - 152.4)) * 10) / 10;
-    if (ibw < 1) ibw = null;
-  }
-  const used = (ibw != null && wt) ? Math.min(ibw, wt) : (wt || ibw || null);
+  const { used, ibw } = laWeightBasis(ht, wt, sex);
   const el = document.getElementById('ibw-used');
   el.textContent = used != null ? used + ' kg' : '-';
   const note = document.getElementById('ibw-used-note');
@@ -2242,6 +2247,12 @@ function getIBW() {
       : (ibw != null) ? 'IBW'
       : ht && ht < DEVINE_MIN_HEIGHT_CM ? 'Actual - IBW not valid under 152 cm'
       : 'Actual weight';
+  }
+  // Devine is an adult formula: say so when it is the weight the ceiling uses.
+  const minorNote = document.getElementById('ibw-used-minor');
+  if (minorNote) {
+    const ibwUsed = ibw != null && used === ibw;
+    minorNote.textContent = ibwUsed && isMinor(patientAgeYears()) ? 'IBW: ' + ADULT_FORMULA_NOTE : '';
   }
   return used;
 }
@@ -3261,9 +3272,7 @@ function calcBodyWeights() {
   var abwM = adjustedBW(wt, ht, 'm'), abwF = adjustedBW(wt, ht, 'f');
   // Sex and age live on the patient card (synced); this tab has no fields for them.
   var sexEl = document.getElementById('g-sex'), sex = sexEl ? sexEl.value : '';
-  var yr = parseInt((document.getElementById('g-yr') || {}).value) || 0;
-  var mo = parseInt((document.getElementById('g-mo') || {}).value) || 0;
-  var ageYrs = (yr > 0 || mo > 0) ? yr + mo / 12 : null;
+  var ageYrs = patientAgeYears();
   var lbwM = leanBodyWeight(wt, ht, 'm', ageYrs), lbwF = leanBodyWeight(wt, ht, 'f', ageYrs);
   var lbwShown = formatMF(lbwM, lbwF, sex);
 
@@ -3272,8 +3281,10 @@ function calcBodyWeights() {
   document.getElementById('dd-abw').textContent =
     abwM == null ? IBW_TOO_SHORT_NOTE : formatMF(abwM, abwF, sex);
   document.getElementById('dd-lbw').textContent =
-    lbwShown !== '—' ? lbwShown : ageYrs != null && ageYrs < LBW_MIN_AGE_YEARS
+    lbwShown !== '—' ? lbwShown : isMinor(ageYrs)
       ? 'Janmahasatian not valid <18 y' : 'Not valid: exceeds TBW';
+  document.getElementById('dd-bw-minor').textContent =
+    ibwM != null && isMinor(ageYrs) ? 'IBW/ABW: ' + ADULT_FORMULA_NOTE : '';
 
   disp.style.display = 'flex';
   disp.style.alignItems = 'center';
