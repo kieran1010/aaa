@@ -35,6 +35,8 @@ button{font-family:inherit;cursor:pointer;font-size:13px}
 .hm-medical{font-family:"HM Geist",Arial,Helvetica,sans-serif;font-weight:600;font-size:8px;letter-spacing:0.18em;margin-right:-0.18em;text-transform:uppercase;color:#9babb8}
 .hm-rule{display:block;flex:none;width:1px;height:26px;margin:0 10px;background:rgba(255,255,255,0.25)}
 .hm-product{font-family:"HM Geist",Arial,Helvetica,sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.015em;line-height:1;color:#fff}
+.offline-badge{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:2px 9px;white-space:nowrap;cursor:help}
+.offline-badge[hidden]{display:none}
 .nav-primary{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 18px;gap:2px;overflow-x:auto}
 .nav-tab{padding:11px 15px;font-size:13px;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-weight:400;transition:color 0.15s}
 .nav-tab:hover{color:var(--text2)}
@@ -252,6 +254,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-96.png" type="image/png" sizes="96x96">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- Installable app (PWA): manifest + sw.js make the calculators work offline -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0c1220">
+<meta name="apple-mobile-web-app-title" content="Vantage">
 </head>
 <body>
 <div class="app">
@@ -263,6 +269,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
     <span class="hm-word"><span class="hm-hypnos">Hypnos</span><span class="hm-medical">Medical</span></span>
     <span class="hm-rule" aria-hidden="true"></span><span class="hm-product">Vantage</span>
   </a>
+  <span class="offline-badge" id="offline-badge" role="status" hidden></span>
 </div>
 
 <!-- TABS -->
@@ -4409,6 +4416,38 @@ function syncSex(originId) {
   });
   globalPatientUpdate();
 }
+
+/* ── Installable app / offline (sw.js) ─────────────────────────────────────
+   The badge says when this page is not known to be the latest version: the
+   device is offline, or sw.js served the saved copy because the network was
+   too slow. */
+(function () {
+  var badge = document.getElementById('offline-badge');
+  var fromCache = false;
+  function updateBadge() {
+    if (!badge) return;
+    if (!navigator.onLine) {
+      badge.textContent = 'Offline';
+      badge.title = 'No connection. Using the copy saved on this device.';
+    } else if (fromCache) {
+      badge.textContent = 'Saved copy';
+      badge.title = 'The network was too slow, so this is the copy saved on this device. Reload to check for updates.';
+    }
+    badge.hidden = navigator.onLine && !fromCache;
+  }
+  window.addEventListener('online', updateBadge);
+  window.addEventListener('offline', updateBadge);
+  updateBadge();
+
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'vantage:source') { fromCache = !!e.data.cached; updateBadge(); }
+  });
+  if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage('vantage:source?');
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () {});
+  });
+})();
 
 </script>
 </body>

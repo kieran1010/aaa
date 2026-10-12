@@ -16,3 +16,6 @@ node calc/data.test.js
 echo
 echo "--- DOM tests (skipped unless jsdom is installed) ---"
 node calc/dom.test.js
+echo
+echo "--- installable app (manifest, sw.js precache list) ---"
+node calc/pwa.test.js
