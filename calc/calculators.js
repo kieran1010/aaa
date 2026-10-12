@@ -63,7 +63,7 @@
   // actual weight >= 1.5 x Devine IBW. Thresholds chosen by the app's owner.
   // Sex unknown -> the lower (female) IBW, as the ABW note above does. IBW is
   // not evaluated under 152.4 cm, so short patients are judged on BMI alone.
-  // Obesity only: a weight below prediction is not flagged.
+  // A weight below prediction is underweightFlag's job.
   var OBESITY_BMI = 40;
   var OBESITY_IBW_RATIO = 1.5;
 
@@ -87,6 +87,60 @@
     if (!(actualWt > 0) || !(aplsWt > 0)) return null;
     var ratio = actualWt / aplsWt;
     return ratio >= OBESITY_IBW_RATIO ? { ratio: ratio } : null;
+  }
+
+  // Low-weight counterpart: BMI below UNDERWEIGHT_BMI (owner's threshold,
+  // chosen to suit children too, whose normal BMI is lower than adults').
+  var UNDERWEIGHT_BMI = 13;
+
+  function underweightFlag(weightKg, heightCm) {
+    if (!(weightKg > 0) || !(heightCm > 0)) return null;
+    var bmi = weightKg / ((heightCm / 100) * (heightCm / 100));
+    return bmi < UNDERWEIGHT_BMI ? { bmi: bmi } : null;
+  }
+
+  // An APLS weight comes from age alone. Against an entered height it can
+  // imply a BMI no real patient has (4 y estimate 16 kg at 130 cm -> BMI 9.5).
+  // Judged on the same thresholds as an entered weight, either direction.
+  function estimateHeightMismatch(aplsWt, heightCm, sex) {
+    var low = underweightFlag(aplsWt, heightCm);
+    if (low) return { bmi: low.bmi, direction: 'low' };
+    var high = obesityFlag(aplsWt, heightCm, sex);
+    if (high) return { bmi: high.bmi, direction: 'high' };
+    return null;
+  }
+
+  /* --------------------------------------------------- lean body weight */
+
+  // Janmahasatian was derived in adults, and nothing in the equation stops
+  // it exceeding the weight it is calculated from: LBW/TBW = 9270/(6680 +
+  // 216 BMI) passes 1 below BMI ~12 for males (~2 for females). So it is
+  // declined under 18 (age unknown is treated as adult, as elsewhere) and
+  // whenever it would exceed TBW. Returns null when declined.
+  var LBW_MIN_AGE_YEARS = 18;
+
+  // Devine IBW and ABW are adult formulae too, but are still shown under 18
+  // (where height >= 152.4 cm), with this caveat - the owner's choice, since
+  // they are commonly used in older adolescents.
+  var ADULT_FORMULA_NOTE = 'adult formula, caution <18 y';
+  function isMinor(ageYears) { return ageYears != null && ageYears < LBW_MIN_AGE_YEARS; }
+
+  function leanBodyWeight(weightKg, heightCm, sex, ageYears) {
+    if (!(weightKg > 0) || !(heightCm > 0)) return null;
+    if (isMinor(ageYears)) return null;
+    var lbw = janmahasatianLBW(weightKg, heightCm, sex);
+    return lbw > weightKg ? null : lbw;
+  }
+
+  // Male/female pair for display. Sex set -> that value only; not set -> both,
+  // each labelled with its own unit ("M 70 kg · F 66 kg"), since "70/66 kg"
+  // reads as a fraction. A declined value (null) shows as "—".
+  function formatMF(m, f, sex) {
+    function one(v) { return v == null ? '—' : Math.round(v) + ' kg'; }
+    if (sex === 'm') return one(m);
+    if (sex === 'f') return one(f);
+    if (m == null && f == null) return '—';
+    return 'M ' + one(m) + ' · F ' + one(f);
   }
 
   /* ------------------------------------------------------------------- age */
@@ -289,14 +343,22 @@
   //      7.5 mg; now it falls back to actual weight.
   var DEVINE_MIN_HEIGHT_CM = 152.4;
 
-  function laWeightUsed(heightCm, weightKg, sex) {
+  // The weight the LA ceiling is calculated on, and the IBW it was compared
+  // with (null where Devine does not apply or sex is not set). The LA tab
+  // needs both, for its "IBW (lower than actual)" note; it used to carry its
+  // own copy of this formula (getIBW) rather than calling it.
+  function laWeightBasis(heightCm, weightKg, sex) {
     var ibw = null;
     if (heightCm && sex && heightCm >= DEVINE_MIN_HEIGHT_CM) {
       ibw = Math.round(((sex === 'm' ? 50 : 45.5) + 0.906 * (heightCm - 152.4)) * 10) / 10;
       if (ibw < 1) ibw = null;
     }
-    if (ibw != null && weightKg) return Math.min(ibw, weightKg);
-    return weightKg || ibw || null;
+    var used = (ibw != null && weightKg) ? Math.min(ibw, weightKg) : (weightKg || ibw || null);
+    return { used: used, ibw: ibw };
+  }
+
+  function laWeightUsed(heightCm, weightKg, sex) {
+    return laWeightBasis(heightCm, weightKg, sex).used;
   }
 
   function laMaxDose(drugKey, weightUsed) {
@@ -455,6 +517,10 @@
     DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM,
     obesityFlag: obesityFlag, paedWeightMismatch: paedWeightMismatch,
     OBESITY_BMI: OBESITY_BMI, OBESITY_IBW_RATIO: OBESITY_IBW_RATIO,
+    underweightFlag: underweightFlag, estimateHeightMismatch: estimateHeightMismatch,
+    UNDERWEIGHT_BMI: UNDERWEIGHT_BMI,
+    leanBodyWeight: leanBodyWeight, LBW_MIN_AGE_YEARS: LBW_MIN_AGE_YEARS, formatMF: formatMF,
+    ADULT_FORMULA_NOTE: ADULT_FORMULA_NOTE, isMinor: isMinor,
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     APLS_MAX_MONTHS: APLS_MAX_MONTHS,
@@ -464,7 +530,7 @@
     AIRWAY_MAX_AGE_YEARS: AIRWAY_MAX_AGE_YEARS,
     paracetamolIVDose: paracetamolIVDose,
     airwayAgeFromWeight: airwayAgeFromWeight, airwaySizes: airwaySizes, lmaSize: lmaSize,
-    LA_DRUGS: LA_DRUGS, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
+    LA_DRUGS: LA_DRUGS, laWeightBasis: laWeightBasis, laWeightUsed: laWeightUsed, laMaxDose: laMaxDose,
     cumulativeToxicFraction: cumulativeToxicFraction,
     ANZCA_OPIOIDS: ANZCA_OPIOIDS, ANZCA_SOURCE: ANZCA_SOURCE,
     THN_THRESHOLD_OMEDD: THN_THRESHOLD_OMEDD,

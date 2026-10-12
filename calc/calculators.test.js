@@ -194,7 +194,73 @@ test('FIXED F19: Devine refuses heights below 152.4 cm', () => {
   is(C.adjustedBW(60, 150, 'f'), null, 'ABW declines too, rather than using a bogus IBW:');
 });
 
+test('LBW: the raw Janmahasatian formula can exceed TBW at low BMI', () => {
+  // The case that prompted leanBodyWeight: 4 y APLS 16 kg at 130 cm, BMI 9.5.
+  eq(C.janmahasatianLBW(16, 130, 'm'), 17.0, 0.05);
+});
+
+test('LBW is declined under 18 years; unknown age is treated as adult', () => {
+  is(C.leanBodyWeight(16, 103, 'm', 4), null, '4 y:');
+  is(C.leanBodyWeight(60, 170, 'f', 17.9), null, '17 y 11 m:');
+  eq(C.leanBodyWeight(80, 180, 'm', 18), 61.6, 0.5, 'exactly 18:');
+  eq(C.leanBodyWeight(80, 180, 'm', null), 61.6, 0.5, 'age unknown:');
+});
+
+test('LBW is declined when it would exceed TBW, and otherwise never does', () => {
+  is(C.leanBodyWeight(16, 130, 'm', null), null, 'BMI 9.5 male:');
+  eq(C.leanBodyWeight(16, 130, 'f', null), 13.4, 0.05, 'female formula only crosses at BMI ~2:');
+  for (let wt = 20; wt <= 200; wt += 5) {
+    for (const ht of [100, 130, 155, 170, 185, 210]) {
+      for (const sex of ['m', 'f']) {
+        const l = C.leanBodyWeight(wt, ht, sex, null);
+        if (l != null && l > wt) throw new Error(`LBW ${l} > TBW ${wt} at ${ht} cm (${sex})`);
+      }
+    }
+  }
+});
+
+test('laWeightBasis gives the weight used and the IBW it was compared with', () => {
+  const b = C.laWeightBasis(160, 90, 'f');
+  eq(b.ibw, 52.4, 0.01); eq(b.used, 52.4, 0.01, 'IBW is the lower:');
+  const c = C.laWeightBasis(170, 45, 'f');
+  eq(c.ibw, 61.4, 0.01); eq(c.used, 45, 0.01, 'actual is the lower:');
+  is(C.laWeightBasis(140, 35, 'f').ibw, null, 'below 152.4 cm:');
+  is(C.laWeightBasis(170, 70, '').ibw, null, 'sex not set:');
+  for (const [h, w, s] of [[160, 90, 'f'], [170, 45, 'f'], [100, 16, 'm'], [180, null, 'm']]) {
+    is(C.laWeightUsed(h, w, s), C.laWeightBasis(h, w, s).used, `laWeightUsed agrees at ${h}/${w}/${s}:`);
+  }
+});
+
+test('isMinor: under 18 only, and unknown age counts as adult', () => {
+  is(C.isMinor(17.99), true); is(C.isMinor(18), false); is(C.isMinor(null), false);
+});
+
+test('formatMF labels each value with its own unit when sex is not set', () => {
+  is(C.formatMF(70.4, 65.6, ''), 'M 70 kg · F 66 kg');
+  is(C.formatMF(70.4, 65.6, 'm'), '70 kg');
+  is(C.formatMF(70.4, 65.6, 'f'), '66 kg');
+  is(C.formatMF(null, 13.4, ''), 'M — · F 13 kg');
+  is(C.formatMF(null, 13.4, 'm'), '—');
+  is(C.formatMF(null, null, ''), '—');
+});
+
 /* ========================== weight plausibility ========================== */
+
+test('underweightFlag fires below BMI 13 and not at or above it', () => {
+  is(C.UNDERWEIGHT_BMI, 13);
+  eq(C.underweightFlag(16, 130).bmi, 9.47, 0.01);
+  is(C.underweightFlag(22, 130), null, 'BMI 13.02:');
+  eq(C.underweightFlag(21.9, 130).bmi, 12.96, 0.01, 'BMI 12.96:');
+  is(C.underweightFlag(16, 103), null, 'BMI 15:');
+  is(C.underweightFlag(null, 130), null);
+  is(C.underweightFlag(16, null), null);
+});
+
+test('estimateHeightMismatch flags an APLS estimate that does not fit the height', () => {
+  is(C.estimateHeightMismatch(16, 130, 'm').direction, 'low', '4 y at 130 cm:');
+  is(C.estimateHeightMismatch(16, 103, 'm'), null, '4 y at a typical 103 cm:');
+  is(C.estimateHeightMismatch(16, 60, '').direction, 'high', 'BMI 44:');
+});
 
 test('obesityFlag fires at BMI >= 40 or >= 1.5 x IBW, and not below', () => {
   is(C.obesityFlag(70, 170, 'm'), null, 'BMI 24, 1.06 x IBW:');
