@@ -28,6 +28,7 @@ node calc/no-duplication.test.js  # index.html loads the module, does not redefi
 node calc/calculators.test.js     # 56 passing
 node calc/data.test.js            # 36 passing
 node calc/dom.test.js             # 53 passing  (needs jsdom)
+node calc/pwa.test.js             # manifest, icons, sw.js precache list matches index.html
 ```
 
 `equivalence.js` exits non-zero on any divergence from `index.html`.
