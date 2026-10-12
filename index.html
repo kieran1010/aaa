@@ -1772,7 +1772,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 const {
   fmtN, roundHalfUp,
   devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM,
-  obesityFlag, paedWeightMismatch,
+  obesityFlag, paedWeightMismatch, underweightFlag, estimateHeightMismatch,
+  UNDERWEIGHT_BMI, leanBodyWeight, LBW_MIN_AGE_YEARS, formatMF,
   ageFromDOB, normaliseAge,
   aplsWeight, aplsFormula, paedWeight, APLS_MAX_MONTHS,
   parseDoseRange, calcDose, maintenanceFluid, MAINTENANCE_KEY,
@@ -2035,13 +2036,34 @@ function updateEmergencyWeightDoses() {
                           ' &bull; max total ' + b(Math.round(12 * w) + ' ml') + ')';
 }
 
-// Entered weight far above what height predicts (BMI >= 40 or >= 1.5 x IBW;
-// see obesityFlag). Actual weight only - never an APLS estimate. Shown on every
+// Note under the LBW value: why it is missing, if it is.
+function lbwNoteFor(m, f, sex, ageYrs, wt, ht, who) {
+  if (ageYrs != null && ageYrs < LBW_MIN_AGE_YEARS) return 'Janmahasatian not valid <18 y';
+  var bmi = Math.round(wt / ((ht / 100) * (ht / 100)));
+  var shown = sex === 'm' ? [m] : sex === 'f' ? [f] : [m, f];
+  if (shown.every(function (v) { return v == null; })) return 'Not valid: exceeds TBW at BMI ' + bmi;
+  if (!sex && (m == null || f == null)) return (m == null ? 'M' : 'F') + ' exceeds TBW at BMI ' + bmi + ' · Janmahasatian';
+  return who('Janmahasatian');
+}
+
+// Weight that does not fit height, in priority order: an APLS estimate (age
+// only) that gives an implausible BMI against the entered height; an entered
+// weight with BMI < 13 (underweightFlag); an entered weight far above what
+// height predicts (BMI >= 40 or >= 1.5 x IBW; obesityFlag). Shown on every
 // card that has a height field, since height is synced across all three.
-function updateObesityWarnings(wt, ht, sex, yr, mo) {
+function updateObesityWarnings(wt, ht, sex, yr, mo, aplsWt) {
   var f = obesityFlag(wt, ht, sex);
+  var low = underweightFlag(wt, ht);
+  var est = aplsWt ? estimateHeightMismatch(aplsWt, ht, sex) : null;
   var html = '';
-  if (f) {
+  if (est) {
+    html = '&#9888; Age and height don\'t fit: the APLS estimate of <strong>' + Math.round(aplsWt) + ' kg</strong> ' +
+           '(from age only) at ' + Math.round(ht) + ' cm gives BMI <strong>' + Math.round(est.bmi) + '</strong>. ' +
+           'Check age and height, and weigh the patient if possible.';
+  } else if (low) {
+    html = '&#9888; Weight is much lower than expected for height: BMI <strong>' + Math.round(low.bmi) +
+           '</strong> (&lt; ' + UNDERWEIGHT_BMI + '). Check weight and height.';
+  } else if (f) {
     var bits = ['BMI <strong>' + Math.round(f.bmi) + '</strong>'];
     if (f.ratio != null) {
       bits.push('<strong>' + f.ratio.toFixed(1) + '&times;</strong> IBW (' + Math.round(f.ibw) + ' kg, Devine' +
@@ -2118,7 +2140,7 @@ function globalPatientUpdate() {
   try{ calcIBW(); }catch(e){}
 
   updateEmergencyWeightDoses();
-  updateObesityWarnings(wt, ht, sex, yr, mo);
+  updateObesityWarnings(wt, ht, sex, yr, mo, isEstimate ? effectiveWt : null);
 
   // Body weight boxes
   var boxes = document.getElementById('g-bw-boxes');
@@ -2130,37 +2152,37 @@ function globalPatientUpdate() {
   // TBW
   document.getElementById('g-tbw').textContent = rnd(effectiveWt) + ' kg';
   var tbwNote = document.getElementById('g-tbw-note');
-  if (tbwNote) tbwNote.textContent = isEstimate ? 'kg · APLS estimate' : 'kg (entered)';
+  if (tbwNote) tbwNote.textContent = !isEstimate ? 'kg (entered)'
+                                   : ht ? 'APLS estimate · from age, ignores height' : 'kg · APLS estimate';
 
   // IBW (Devine) — needs height, and only above 152.4 cm
   var ibwEl = document.getElementById('g-ibw');
   var ibwNote = document.getElementById('g-ibw-note');
   if (ht) {
     var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
-    var lbwM = janmahasatianLBW(effectiveWt, ht, 'm'), lbwF = janmahasatianLBW(effectiveWt, ht, 'f');
+    var ageYrs = (yr > 0 || mo > 0) ? yr + mo / 12 : null;
+    var lbwM = leanBodyWeight(effectiveWt, ht, 'm', ageYrs), lbwF = leanBodyWeight(effectiveWt, ht, 'f', ageYrs);
     var abwM = adjustedBW(effectiveWt, ht, 'm'),  abwF = adjustedBW(effectiveWt, ht, 'f');
     var lbwEl  = document.getElementById('g-lbw'),  lbwNote = document.getElementById('g-lbw-note');
     var abwEl  = document.getElementById('g-abw'),  abwNote = document.getElementById('g-abw-note');
 
-    function pair(m, f, unit) {
-      if (m == null || f == null) return '—';
-      return sex === 'm' ? rnd(m) + unit : sex === 'f' ? rnd(f) + unit : rnd(m) + '/' + rnd(f) + unit;
-    }
+    function pair(m, f) { return formatMF(m, f, sex); }
     function who(base) {
-      return sex === 'm' ? 'Male · ' + base : sex === 'f' ? 'Female · ' + base : 'M/F · ' + base;
+      return sex === 'm' ? 'Male · ' + base : sex === 'f' ? 'Female · ' + base : 'Sex not set · ' + base;
     }
 
     if (ibwM == null) {
       ibwEl.textContent = '—';  ibwNote.textContent = IBW_TOO_SHORT_NOTE;
       abwEl.textContent = '—';  abwNote.textContent = IBW_TOO_SHORT_NOTE;
     } else {
-      ibwEl.textContent = pair(ibwM, ibwF, ' kg');  ibwNote.textContent = who('Devine');
-      abwEl.textContent = pair(abwM, abwF, ' kg');
+      ibwEl.textContent = pair(ibwM, ibwF);  ibwNote.textContent = who('Devine');
+      abwEl.textContent = pair(abwM, abwF);
       var usedIbw = sex === 'm' ? ibwM : sex === 'f' ? ibwF : Math.min(ibwM, ibwF);
       abwNote.textContent = effectiveWt > usedIbw ? who('IBW + 0.4(TBW−IBW)') : 'TBW ≤ IBW · = TBW';
     }
-    // LBW is valid at any height
-    lbwEl.textContent = pair(lbwM, lbwF, ' kg');  lbwNote.textContent = who('Janmahasatian');
+    // LBW (Janmahasatian): adults only, and never above TBW - see leanBodyWeight
+    lbwEl.textContent = pair(lbwM, lbwF);
+    lbwNote.textContent = lbwNoteFor(lbwM, lbwF, sex, ageYrs, effectiveWt, ht, who);
   } else {
     // No height — can only show TBW
     ['g-ibw','g-lbw','g-abw'].forEach(function(id){ document.getElementById(id).textContent='—'; });
@@ -3231,20 +3253,27 @@ function calcBodyWeights() {
   var ht  = parseFloat(document.getElementById('dd-ht').value);
   var disp = document.getElementById('dd-bw-display');
   if (!wt || !ht) { disp.style.display = 'none'; return; }
-  function rnd(v) { return Math.round(v); }
 
   // Same shared helpers as the patient card. This tab used to have its own copy
   // that returned IBW when TBW <= IBW, so a 45 kg patient was shown an
   // "adjusted body weight" of 61 kg - larger than the patient.
   var ibwM = devineIBW(ht, 'm'), ibwF = devineIBW(ht, 'f');
   var abwM = adjustedBW(wt, ht, 'm'), abwF = adjustedBW(wt, ht, 'f');
-  var lbwM = janmahasatianLBW(wt, ht, 'm'), lbwF = janmahasatianLBW(wt, ht, 'f');
+  // Sex and age live on the patient card (synced); this tab has no fields for them.
+  var sexEl = document.getElementById('g-sex'), sex = sexEl ? sexEl.value : '';
+  var yr = parseInt((document.getElementById('g-yr') || {}).value) || 0;
+  var mo = parseInt((document.getElementById('g-mo') || {}).value) || 0;
+  var ageYrs = (yr > 0 || mo > 0) ? yr + mo / 12 : null;
+  var lbwM = leanBodyWeight(wt, ht, 'm', ageYrs), lbwF = leanBodyWeight(wt, ht, 'f', ageYrs);
+  var lbwShown = formatMF(lbwM, lbwF, sex);
 
   document.getElementById('dd-ibw').textContent =
-    ibwM == null ? IBW_TOO_SHORT_NOTE : rnd(ibwM) + '/' + rnd(ibwF) + ' kg (M/F)';
+    ibwM == null ? IBW_TOO_SHORT_NOTE : formatMF(ibwM, ibwF, sex);
   document.getElementById('dd-abw').textContent =
-    abwM == null ? IBW_TOO_SHORT_NOTE : rnd(abwM) + '/' + rnd(abwF) + ' kg (M/F)';
-  document.getElementById('dd-lbw').textContent = rnd(lbwM) + '/' + rnd(lbwF) + ' kg (M/F)';
+    abwM == null ? IBW_TOO_SHORT_NOTE : formatMF(abwM, abwF, sex);
+  document.getElementById('dd-lbw').textContent =
+    lbwShown !== '—' ? lbwShown : ageYrs != null && ageYrs < LBW_MIN_AGE_YEARS
+      ? 'Janmahasatian not valid <18 y' : 'Not valid: exceeds TBW';
 
   disp.style.display = 'flex';
   disp.style.alignItems = 'center';

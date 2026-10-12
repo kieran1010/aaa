@@ -1820,3 +1820,39 @@ shared function directly.
 | Logic | 56 passed, 0 pending |
 | Data | 36 passed, 0 pending |
 | DOM | 53 passed (10 new) |
+
+---
+
+# Addendum J — F32: lean body weight could exceed total body weight
+
+## J.1 What was wrong
+
+Reported from the live site: age 4, height 130 cm, male, no weight entered. The
+APLS estimate gave TBW 16 kg and Janmahasatian gave **LBW 17 kg**. The formula
+is not bounded by the weight it is derived from — LBW/TBW = 9270/(6680 + 216 BMI)
+passes 1 below BMI ≈ 12 for males (≈ 2 for females) — and it was applied at any
+age, although it was derived in adults. F.1 above kept LBW "since Janmahasatian
+has no such floor"; that is true of the arithmetic, not of its validity. LBW is
+display-only (no dose is calculated from it), so the risk was a clinician reading
+it off.
+
+The weight-vs-height warning (obesityFlag) did not fire because it judges
+entered weights only, and only in the heavy direction.
+
+## J.2 The fix (thresholds chosen by the app's owner)
+
+- `leanBodyWeight()` declines under 18 years (age unknown = adult, as
+  elsewhere) and whenever the result would exceed TBW. Both displays use it.
+- `underweightFlag()`: an entered weight with BMI < 13 is flagged.
+- `estimateHeightMismatch()`: an APLS estimate is judged against an entered
+  height on the same thresholds (BMI < 13, or obesityFlag), and the TBW note
+  says the estimate ignores height.
+- Male/female pairs read "M 70 kg · F 66 kg" instead of "70/66 kg", and the
+  drugs tab follows the patient-card sex when it is set.
+
+## J.3 Verification
+
+| | |
+|---|---|
+| Logic | 68 passed (6 new, incl. a property test that LBW never exceeds TBW) |
+| DOM | 62 passed (3 new; the F14 drugs-tab assertion now expects "45 kg" for a female patient rather than "45/45 kg") |

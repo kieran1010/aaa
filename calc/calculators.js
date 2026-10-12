@@ -63,7 +63,7 @@
   // actual weight >= 1.5 x Devine IBW. Thresholds chosen by the app's owner.
   // Sex unknown -> the lower (female) IBW, as the ABW note above does. IBW is
   // not evaluated under 152.4 cm, so short patients are judged on BMI alone.
-  // Obesity only: a weight below prediction is not flagged.
+  // A weight below prediction is underweightFlag's job.
   var OBESITY_BMI = 40;
   var OBESITY_IBW_RATIO = 1.5;
 
@@ -87,6 +87,54 @@
     if (!(actualWt > 0) || !(aplsWt > 0)) return null;
     var ratio = actualWt / aplsWt;
     return ratio >= OBESITY_IBW_RATIO ? { ratio: ratio } : null;
+  }
+
+  // Low-weight counterpart: BMI below UNDERWEIGHT_BMI (owner's threshold,
+  // chosen to suit children too, whose normal BMI is lower than adults').
+  var UNDERWEIGHT_BMI = 13;
+
+  function underweightFlag(weightKg, heightCm) {
+    if (!(weightKg > 0) || !(heightCm > 0)) return null;
+    var bmi = weightKg / ((heightCm / 100) * (heightCm / 100));
+    return bmi < UNDERWEIGHT_BMI ? { bmi: bmi } : null;
+  }
+
+  // An APLS weight comes from age alone. Against an entered height it can
+  // imply a BMI no real patient has (4 y estimate 16 kg at 130 cm -> BMI 9.5).
+  // Judged on the same thresholds as an entered weight, either direction.
+  function estimateHeightMismatch(aplsWt, heightCm, sex) {
+    var low = underweightFlag(aplsWt, heightCm);
+    if (low) return { bmi: low.bmi, direction: 'low' };
+    var high = obesityFlag(aplsWt, heightCm, sex);
+    if (high) return { bmi: high.bmi, direction: 'high' };
+    return null;
+  }
+
+  /* --------------------------------------------------- lean body weight */
+
+  // Janmahasatian was derived in adults, and nothing in the equation stops
+  // it exceeding the weight it is calculated from: LBW/TBW = 9270/(6680 +
+  // 216 BMI) passes 1 below BMI ~12 for males (~2 for females). So it is
+  // declined under 18 (age unknown is treated as adult, as elsewhere) and
+  // whenever it would exceed TBW. Returns null when declined.
+  var LBW_MIN_AGE_YEARS = 18;
+
+  function leanBodyWeight(weightKg, heightCm, sex, ageYears) {
+    if (!(weightKg > 0) || !(heightCm > 0)) return null;
+    if (ageYears != null && ageYears < LBW_MIN_AGE_YEARS) return null;
+    var lbw = janmahasatianLBW(weightKg, heightCm, sex);
+    return lbw > weightKg ? null : lbw;
+  }
+
+  // Male/female pair for display. Sex set -> that value only; not set -> both,
+  // each labelled with its own unit ("M 70 kg · F 66 kg"), since "70/66 kg"
+  // reads as a fraction. A declined value (null) shows as "—".
+  function formatMF(m, f, sex) {
+    function one(v) { return v == null ? '—' : Math.round(v) + ' kg'; }
+    if (sex === 'm') return one(m);
+    if (sex === 'f') return one(f);
+    if (m == null && f == null) return '—';
+    return 'M ' + one(m) + ' · F ' + one(f);
   }
 
   /* ------------------------------------------------------------------- age */
@@ -455,6 +503,9 @@
     DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM,
     obesityFlag: obesityFlag, paedWeightMismatch: paedWeightMismatch,
     OBESITY_BMI: OBESITY_BMI, OBESITY_IBW_RATIO: OBESITY_IBW_RATIO,
+    underweightFlag: underweightFlag, estimateHeightMismatch: estimateHeightMismatch,
+    UNDERWEIGHT_BMI: UNDERWEIGHT_BMI,
+    leanBodyWeight: leanBodyWeight, LBW_MIN_AGE_YEARS: LBW_MIN_AGE_YEARS, formatMF: formatMF,
     ageFromDOB: ageFromDOB, formatPaedAge: formatPaedAge, normaliseAge: normaliseAge,
     aplsWeight: aplsWeight, aplsFormula: aplsFormula, paedWeight: paedWeight,
     APLS_MAX_MONTHS: APLS_MAX_MONTHS,

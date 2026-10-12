@@ -248,7 +248,36 @@ test('F14/F19: the two body-weight displays agree, and never exceed the patient'
   is(p.text('g-abw'), '45 kg', 'patient card ABW = TBW:');
   p.set('dd-wt', 45).set('dd-ht', 170);
   const dd = p.text('dd-abw');
-  if (!/^45\/45 kg/.test(dd)) throw new Error(`drugs tab disagrees: ${dd} (was 61/61)`);
+  is(dd, '45 kg', 'drugs tab agrees, following the patient-card sex (was 61/61):');
+});
+
+test('M/F values are labelled with their own units when sex is not set', () => {
+  const p = page().set('g-wt', 80).set('g-ht', 180).change('g-sex', '');
+  is(p.text('g-ibw'), 'M 75 kg · F 70 kg');
+  is(p.text('g-lbw'), 'M 62 kg · F 50 kg');
+  p.set('dd-wt', 80).set('dd-ht', 180);
+  is(p.text('dd-lbw'), 'M 62 kg · F 50 kg', 'drugs tab, same format:');
+});
+
+test('LBW is declined under 18 and when it would exceed TBW', () => {
+  // The reported case: 4 y, 130 cm, male, no weight -> APLS 16 kg, LBW was 17 kg.
+  const p = page().set('g-ht', 130).change('g-sex', 'm').set('g-yr', 4).set('g-mo', 0);
+  is(p.text('g-tbw'), '16 kg');
+  is(p.text('g-lbw'), '—', 'was 17 kg:');
+  is(p.text('g-lbw-note'), 'Janmahasatian not valid <18 y');
+  const q = page().set('g-wt', 40).set('g-ht', 185).change('g-sex', 'm');
+  is(q.text('g-lbw'), '—', 'adult BMI 11.7 male:');
+  if (!/exceeds TBW/.test(q.text('g-lbw-note'))) throw new Error(q.text('g-lbw-note'));
+});
+
+test('weight that does not fit height is flagged: APLS estimate, and low entered weight', () => {
+  const p = page().set('g-ht', 130).change('g-sex', 'm').set('g-yr', 4).set('g-mo', 0);
+  if (!/Age and height don't fit/.test(p.text('g-obesity-warn'))) throw new Error(`estimate: ${p.text('g-obesity-warn')}`);
+  if (!/ignores height/.test(p.text('g-tbw-note'))) throw new Error(p.text('g-tbw-note'));
+  const q = page().set('g-wt', 40).set('g-ht', 185);
+  if (!/much lower than expected/.test(q.text('g-obesity-warn'))) throw new Error(`low: ${q.text('g-obesity-warn')}`);
+  const r = page().set('g-wt', 70).set('g-ht', 175);
+  is(r.text('g-obesity-warn'), '', 'normal adult:');
 });
 
 test('F19: below 152 cm both displays decline rather than showing 0 kg', () => {
@@ -259,7 +288,7 @@ test('F19: below 152 cm both displays decline rather than showing 0 kg', () => {
   if (!/not valid/i.test(p.text('dd-ibw'))) throw new Error(p.text('dd-ibw'));
 });
 
-test('F19: LBW is still shown below 152 cm, where it is valid', () => {
+test('F19: LBW is still shown below 152 cm, where it is valid (adult, BMI in range)', () => {
   const p = page().set('g-wt', 40).set('g-ht', 140).change('g-sex', 'f');
   if (p.text('g-lbw') === '—') throw new Error('LBW should still be available');
 });
