@@ -56,6 +56,7 @@ const IMAGES = [
   '/images/isb_anat.jpg',
   '/images/isb_probe.jpg',
   '/images/isb_us.jpg',
+  '/images/moon-photo-watermark.png',
   '/images/popliteal_anat.jpg',
   '/images/popliteal_probe.jpg',
   '/images/popliteal_us.jpg',
