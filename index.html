@@ -141,11 +141,16 @@ button{font-family:inherit;cursor:pointer;font-size:13px}
 iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 
 /* Home screen */
-.home-hero{text-align:center;padding:36px 16px 24px;margin-bottom:20px}
-.home-hero-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px;margin-left:-28px}
-.home-hero-icon{width:40px;height:40px;flex:none}
+.home-hero{text-align:center;padding:36px 16px 24px;margin-bottom:20px;position:relative;overflow:hidden;min-height:240px}
+/* Brand kit hero watermark: photo moon, 240px at 18%, top right, decorative.
+   The kit's hero file has a navy ground that would show as a box on this
+   background, so this one is made from the kit's transparent cut-out master
+   (owner's choice) - 480px lossless for 2x screens. Never taller than the
+   hero, so it scales down on phones instead of being clipped. */
+.home-hero-watermark{position:absolute;top:0;right:0;height:min(240px,100%);width:auto;aspect-ratio:1;opacity:.18;pointer-events:none}
+.home-hero > :not(.home-hero-watermark){position:relative}
 /* Product-name hero (brand kit "hero display"): Gelasio, white */
-.home-h1{font-family:"HM Gelasio",Georgia,"Times New Roman",serif;font-size:40px;font-weight:400;color:#fff;letter-spacing:-0.01em;line-height:1.1}
+.home-h1{font-family:"HM Gelasio",Georgia,"Times New Roman",serif;font-size:clamp(48px,8vw,80px);font-weight:400;color:#fff;line-height:1.1;margin-bottom:10px}
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:10px}
 .home-tile{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px 14px;cursor:pointer;text-decoration:none;display:block;transition:border-color 0.15s,background 0.15s,transform 0.1s;box-shadow:0 2px 8px rgba(0,0,0,0.25)}
 .home-tile:hover{border-color:var(--blue);background:var(--bg4);transform:translateY(-1px)}
@@ -185,8 +190,6 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 .notepad{width:100%;min-height:100px;background:var(--bg4);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:13px;padding:10px;resize:vertical;font-family:inherit;line-height:1.6}
 .notepad:focus{border-color:var(--blue);outline:none}
 /* Hero clickable logo */
-.home-hero-logo{cursor:pointer;user-select:none}
-.home-hero-logo:hover svg path{filter:brightness(1.2)}
 
 /* =====================
    MOBILE LAYOUT
@@ -204,9 +207,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   .card { padding: 12px; margin-bottom: 10px; }
 
   /* Hero */
-  .home-h1 { font-size: 26px; }
   .home-clock { font-size: 20px; }
-  .home-hero { padding: 20px 10px 16px; }
+  .home-hero { padding: 20px 10px 16px; min-height: 0; }
 
   /* Patient card — stack fields */
   .row { flex-wrap: wrap; gap: 8px !important; }
@@ -509,10 +511,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 ══════════════════════════════════════ -->
 <div class="page active" id="tab-home">
   <div class="home-hero">
-    <div class="home-hero-logo" onclick="window.location.href='https://hypnos.one'" title="Visit hypnos.one">
-      <svg class="home-hero-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.2 0A12 12 0 1 0 23.96 13.29A9.14 9.14 0 0 1 12.2 0Z" fill="#fff"/></svg>
-      <div class="home-h1">Vantage</div>
-    </div>
+    <img class="home-hero-watermark" src="/images/moon-photo-watermark.png" width="240" height="240" alt="" aria-hidden="true">
+    <h1 class="home-h1">Vantage</h1>
     <div class="home-clock" id="home-clock" onclick="hypnosClick()" title="&#128" style="cursor:pointer">00:00:00</div>
     <div class="home-timer-wrap">
       <span style="font-size:11px;color:var(--text3)">Session</span>

@@ -17,7 +17,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'vantage-v1';
+const CACHE_VERSION = 'vantage-v2';
 const NETWORK_TIMEOUT_MS = 3000;
 
 const HTML_KEY = '/';
@@ -56,6 +56,7 @@ const IMAGES = [
   '/images/isb_anat.jpg',
   '/images/isb_probe.jpg',
   '/images/isb_us.jpg',
+  '/images/moon-photo-watermark.png',
   '/images/popliteal_anat.jpg',
   '/images/popliteal_probe.jpg',
   '/images/popliteal_us.jpg',
