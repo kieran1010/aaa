@@ -146,8 +146,8 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
    The kit's hero file has a navy ground that would show as a box on this
    background, so this one is made from the kit's transparent cut-out master
    (owner's choice) - 480px lossless for 2x screens. Never taller than the
-   hero, so it scales down on phones instead of being clipped. */
-.home-hero-watermark{position:absolute;top:0;right:0;height:min(240px,100%);width:auto;aspect-ratio:1;opacity:.18;pointer-events:none}
+   hero, and 30vw at most, so it shrinks on phones (117px at 390px wide). */
+.home-hero-watermark{position:absolute;top:0;right:0;height:min(240px,100%,30vw);width:auto;aspect-ratio:1;opacity:.18;pointer-events:none}
 .home-hero > :not(.home-hero-watermark){position:relative}
 /* Product-name hero (brand kit "hero display"): Gelasio, white */
 .home-h1{font-family:"HM Gelasio",Georgia,"Times New Roman",serif;font-size:clamp(48px,8vw,80px);font-weight:400;color:#fff;line-height:1.1;margin-bottom:10px}
