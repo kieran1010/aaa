@@ -3295,6 +3295,8 @@ function calcBodyWeights() {
 
 function filterDrugs() {
   const q = (document.getElementById('drug-search').value || '').toLowerCase().trim();
+  // Category tabs are hidden while searching, since results span all categories
+  document.getElementById('dd-cats').style.display = q ? 'none' : '';
   if (q) {
     ddSearchActive = true;
     document.querySelectorAll('#dd-cats .cat-btn').forEach(b => b.classList.remove('active'));
