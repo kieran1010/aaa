@@ -162,10 +162,20 @@ test('FIXED F6: index.html carries the ANZCA table verbatim', () => {
 
 test('FIXED F6: both tools are derived from it, so they cannot diverge', () => {
   D.ANZCA_OPIOIDS.forEach(o => {
-    const conv = 10 / D.OPIOIDS.find(x => x.key === o.key).equiv;
     const om   = D.OMEDD_DRUGS.find(x => x.name === o.route + ' ' + o.drug).factor;
-    if (Math.abs(conv - o.factor) > 1e-9) throw new Error(`${o.drug}: conversion tab ${conv} vs ${o.factor}`);
     if (Math.abs(om - o.factor) > 1e-9)   throw new Error(`${o.drug}: oMEDD tab ${om} vs ${o.factor}`);
+    if (o.route === 'Transdermal') return;   // oMEDD only; see next test
+    const conv = 10 / D.OPIOIDS.find(x => x.key === o.key).equiv;
+    if (Math.abs(conv - o.factor) > 1e-9) throw new Error(`${o.drug}: conversion tab ${conv} vs ${o.factor}`);
+  });
+});
+
+test('transdermal patches are on the oMEDD tab but not the conversion tab', () => {
+  // A patch factor turns mcg/hr into mg/day oMEDD; as a "≡ 10 mg PO morphine"
+  // dose it would read as e.g. 3.33 mcg/hr, which is meaningless.
+  D.ANZCA_OPIOIDS.filter(o => o.route === 'Transdermal').forEach(o => {
+    if (D.OPIOIDS.some(x => x.key === o.key)) throw new Error(`${o.drug} patch still in conversion tab`);
+    if (!D.OMEDD_DRUGS.some(x => x.name === 'Transdermal ' + o.drug)) throw new Error(`${o.drug} patch missing from oMEDD tab`);
   });
 });
 
