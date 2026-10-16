@@ -3389,8 +3389,10 @@ function anzcaFactor(key) {
   return e ? e.factor : null;
 }
 
-// Conversion tab: derived, never stored separately.
-const OPIOIDS = ANZCA_OPIOIDS.map(o => ({
+// Conversion tab: derived, never stored separately. Transdermal patches are
+// left out: their factor converts a rate (mcg/hr) to a daily oMEDD, which is
+// valid on the oMEDD tab but meaningless as a dose equivalent here.
+const OPIOIDS = ANZCA_OPIOIDS.filter(o => o.route !== 'Transdermal').map(o => ({
   key:   o.key,
   label: o.route + ' ' + o.drug,
   equiv: 10 / o.factor,
