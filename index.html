@@ -3029,7 +3029,7 @@ const DRUG_CATS = {
     { name:'Vecuronium',             conc:'1 mg/mL',      bolusLo:0.08, bolusHi:0.1,  bolusUnit:'mg/kg',      infLo:0.8,  infHi:1.4,  infUnit:'mcg/kg/min',    notes:'' },
   ],
   'Haematology': [
-    { name:'Cryoprecipitate',        conc:'',             bolusLo:0.1,  bolusHi:0.2,  bolusUnit:'units/kg',   infLo:null, infHi:null, infUnit:'',              notes:'Fibrinogen replacement. 1 unit per 5-10 kg. Target fibrinogen >1.5 g/L' },
+    { name:'Cryoprecipitate',        conc:'80-120 mL/unit', bolusLo:1/30, bolusHi:1/30, bolusUnit:'units/kg', bolusLabel:'1 unit/30 kg', infLo:null, infHi:null, infUnit:'', notes:'NZBS apheresis cryo: 1 unit per 30 kg raises fibrinogen by ~1 g/L; round to whole units (usual adult dose 2-3 units). Adjust to pre-transfusion fibrinogen, response and bleeding. Paediatric ~3 mL/kg. Target fibrinogen >1.5 g/L' },
     { name:'Desmopressin',           conc:'',             bolusLo:0.3,  bolusHi:0.3,  bolusUnit:'mcg/kg',     infLo:null, infHi:null, infUnit:'',              notes:'Haemophilia A, vWD, platelet dysfunction. Infuse over 20-30 min' },
     { name:'Fibrinogen concentrate', conc:'',             bolusLo:70,   bolusHi:70,   bolusUnit:'mg/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Reconstitute and give over 5 min. Target fibrinogen >2 g/L in major haemorrhage' },
     { name:'Fresh frozen plasma',    conc:'',             bolusLo:10,   bolusHi:15,   bolusUnit:'mL/kg',      infLo:null, infHi:null, infUnit:'',              notes:'Coagulopathy, massive transfusion. Takes 20-30 min to thaw' },
@@ -3150,6 +3150,7 @@ function renderDrugTable(data) {
   tbody.innerHTML = data.map((d, i) => {
     const bg = i % 2 === 0 ? '' : 'background:var(--bg4)';
     const bolus = ddFmtRange(d.bolusLo, d.bolusHi, d.bolusUnit, wt, d.maxDose != null ? d.maxDose : null);
+    if (d.bolusLabel) bolus.range = d.bolusLabel;
     const inf   = ddFmtRange(d.infLo,   d.infHi,   d.infUnit,   null);
     function tdDim(val) {
       const c = (val && val !== '-') ? 'var(--blue)' : 'var(--text3)';
