@@ -39,6 +39,18 @@
     return base + 2.3 * htIn;
   }
 
+  // Imperial height to cm, for the ft/in converter on the Home card. 1 in is
+  // exactly 2.54 cm. Inches must be under 12 (5 ft 14 in is a typo, not
+  // 6 ft 2 in); a blank is 0. Returns null for anything that is not a height.
+  function feetInchesToCm(feet, inches) {
+    var ft = feet === '' || feet == null ? 0 : Number(feet);
+    var inch = inches === '' || inches == null ? 0 : Number(inches);
+    if (!isFinite(ft) || !isFinite(inch)) return null;
+    if (ft < 0 || ft > 9 || inch < 0 || inch >= 12) return null;
+    var cm = (ft * 12 + inch) * 2.54;
+    return cm > 0 ? cm : null;
+  }
+
   // Janmahasatian lean body weight.
   function janmahasatianLBW(weightKg, heightCm, sex) {
     var bmi = weightKg / ((heightCm / 100) * (heightCm / 100));
@@ -514,7 +526,7 @@
   return {
     fmtN: fmtN, roundHalfUp: roundHalfUp,
     devineIBW: devineIBW, janmahasatianLBW: janmahasatianLBW, adjustedBW: adjustedBW,
-    DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM,
+    DEVINE_MIN_HEIGHT_CM: DEVINE_MIN_HEIGHT_CM, feetInchesToCm: feetInchesToCm,
     obesityFlag: obesityFlag, paedWeightMismatch: paedWeightMismatch,
     OBESITY_BMI: OBESITY_BMI, OBESITY_IBW_RATIO: OBESITY_IBW_RATIO,
     underweightFlag: underweightFlag, estimateHeightMismatch: estimateHeightMismatch,
