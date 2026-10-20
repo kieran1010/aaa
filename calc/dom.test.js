@@ -241,6 +241,29 @@ test('F9: maintenance fluid follows Holliday-Segar and carries a unit', () => {
   });
 });
 
+/* --------------------------- height converter ---------------------------- */
+
+test('ft/in converter fills the shared height fields', () => {
+  const p = page();
+  p.d.getElementById('ftin-open').dispatchEvent(new p.W.Event('click', { bubbles: true }));
+  is(p.d.getElementById('modal-ftin').classList.contains('open'), true, 'opens:');
+  is(p.d.getElementById('ftin-use').disabled, true, 'nothing to use yet:');
+  p.set('ftin-ft', 5).set('ftin-in', 10);
+  is(p.text('ftin-cm'), '177.8 cm');
+  is(p.text('ftin-use'), 'Use 178 cm');
+  p.d.getElementById('ftin-use').dispatchEvent(new p.W.Event('click', { bubbles: true }));
+  is(p.val('g-ht'), '178', 'home:');
+  is(p.val('dd-ht'), '178', 'drugs tab:');
+  is(p.val('la-ht'), '178', 'LA calculator:');
+  is(p.d.getElementById('modal-ftin').classList.contains('open'), false, 'closes:');
+});
+
+test('ft/in converter declines 12 inches', () => {
+  const p = page().set('ftin-ft', 5).set('ftin-in', 12);
+  is(p.text('ftin-cm'), '\u2014');
+  is(p.d.getElementById('ftin-use').disabled, true);
+});
+
 /* --------------------------- Tier 3 in the page --------------------------- */
 
 test('F14/F19: the two body-weight displays agree, and never exceed the patient', () => {

@@ -565,6 +565,25 @@ test('antibiotic dosing and the cefazolin weight band', () => {
   eq(C.abxDose('25 mg/kg', 80, 3000, null).mg, 2000, 0, 'vancomycin uncapped at 80 kg:');
 });
 
+/* ========================= height converter ============================== */
+
+test('feet and inches convert to cm exactly (1 in = 2.54 cm)', () => {
+  eq(C.feetInchesToCm(5, 0), 152.4, 1e-9, '5 ft:');
+  eq(C.feetInchesToCm(5, 10), 177.8, 1e-9, '5 ft 10 in:');
+  eq(C.feetInchesToCm(6, 2), 187.96, 1e-9, '6 ft 2 in:');
+  eq(C.feetInchesToCm('5', ''), 152.4, 1e-9, 'blank inches are 0:');
+  eq(C.feetInchesToCm('', 11), 27.94, 1e-9, 'inches only:');
+});
+
+test('feet and inches outside a height are declined', () => {
+  is(C.feetInchesToCm('', ''), null, 'both blank:');
+  is(C.feetInchesToCm(0, 0), null, 'zero:');
+  is(C.feetInchesToCm(5, 12), null, '12 in:');
+  is(C.feetInchesToCm(5, -1), null, 'negative inches:');
+  is(C.feetInchesToCm(10, 0), null, '10 ft:');
+  is(C.feetInchesToCm('x', 0), null, 'not a number:');
+});
+
 /* ================================= report ================================ */
 
 console.log(`\n${pass} passed, ${fail} failed, ${pend} pending (expected to fail — open findings)`);

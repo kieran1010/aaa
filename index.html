@@ -531,7 +531,10 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
       </div>
       <div class="field">
         <label>Height (cm)</label>
-        <input type="number" id="g-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('g-ht')">
+        <div style="display:flex;gap:6px">
+          <input type="number" id="g-ht" placeholder="170" min="100" max="220" style="width:90px" oninput="syncHeight('g-ht')">
+          <button class="btn" id="ftin-open" style="padding:6px 8px" onclick="openFtIn()" title="Convert feet and inches to cm">ft/in</button>
+        </div>
       </div>
       <div class="field">
         <label>Sex</label>
@@ -1743,6 +1746,21 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
   </div>
 </div>
 
+<!-- Height converter modal -->
+<div class="modal-ov" id="modal-ftin">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-ftin')">&times;</button>
+    <div class="modal-title">Height: feet and inches to cm</div>
+    <div class="row" style="align-items:flex-end;gap:12px;flex-wrap:wrap">
+      <div class="field"><label>Feet</label><input type="number" id="ftin-ft" placeholder="5" min="0" max="9" style="width:70px" oninput="calcFtIn()"></div>
+      <div class="field"><label>Inches</label><input type="number" id="ftin-in" placeholder="10" min="0" max="11.9" step="any" style="width:70px" oninput="calcFtIn()"></div>
+      <div class="ibw-box" style="flex:1;min-width:110px"><div class="ibw-lbl">Height</div><div class="ibw-val" id="ftin-cm">&mdash;</div></div>
+    </div>
+    <div class="ibw-note" id="ftin-note" style="margin-top:8px;min-height:16px"></div>
+    <button class="btnp" id="ftin-use" style="margin-top:12px;width:100%" onclick="useFtIn()" disabled>Use this height</button>
+  </div>
+</div>
+
 <!-- Easter egg modal -->
 <div class="modal-ov" id="modal-egg">
   <div class="modal-box">
@@ -1771,7 +1789,7 @@ iframe.cfi{flex:1;border:none;width:100%;min-height:580px;background:#fff}
 =========================================================================== */
 const {
   fmtN, roundHalfUp,
-  devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM,
+  devineIBW, janmahasatianLBW, adjustedBW, DEVINE_MIN_HEIGHT_CM, feetInchesToCm,
   obesityFlag, paedWeightMismatch, underweightFlag, estimateHeightMismatch,
   UNDERWEIGHT_BMI, leanBodyWeight, formatMF, ADULT_FORMULA_NOTE, isMinor,
   laWeightBasis,
@@ -4298,6 +4316,46 @@ document.addEventListener('keydown', function(e) {
 document.querySelectorAll('.modal-ov').forEach(function(ov) {
   ov.addEventListener('click', function(e) { if (e.target === ov) ov.classList.remove('open'); });
 });
+
+/* =======================================
+   HEIGHT CONVERTER (ft/in -> cm)
+======================================= */
+// The Home height field takes whole cm, so "Use" fills the rounded value and
+// the button says which number it will put there.
+function openFtIn() {
+  document.getElementById('modal-ftin').classList.add('open');
+  calcFtIn();
+  document.getElementById('ftin-ft').focus();
+}
+
+function calcFtIn() {
+  var ft = document.getElementById('ftin-ft').value;
+  var inch = document.getElementById('ftin-in').value;
+  var out = document.getElementById('ftin-cm');
+  var note = document.getElementById('ftin-note');
+  var use = document.getElementById('ftin-use');
+  var cm = feetInchesToCm(ft, inch);
+  if (cm == null) {
+    out.textContent = '\u2014';
+    note.textContent = (ft === '' && inch === '') ? '' : 'Feet 0-9, inches 0-11';
+    use.disabled = true;
+    use.textContent = 'Use this height';
+    return;
+  }
+  out.textContent = cm.toFixed(1) + ' cm';
+  note.textContent = '1 in = 2.54 cm';
+  use.disabled = false;
+  use.textContent = 'Use ' + Math.round(cm) + ' cm';
+}
+
+function useFtIn() {
+  var cm = feetInchesToCm(document.getElementById('ftin-ft').value,
+                          document.getElementById('ftin-in').value);
+  if (cm == null) return;
+  document.getElementById('g-ht').value = Math.round(cm);
+  syncHeight('g-ht');
+  closeModal('modal-ftin');
+}
 
 /* =======================================
    NOTEPAD
