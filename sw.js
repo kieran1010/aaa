@@ -17,7 +17,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'vantage-v2';
+const CACHE_VERSION = 'vantage-v3';
 const NETWORK_TIMEOUT_MS = 3000;
 
 const HTML_KEY = '/';
