@@ -85,6 +85,19 @@ test('FIXED F3: the adult caps bite', () => {
   is(Math.min(50 * 90, pcc.maxDose), 3000);
 });
 
+test('Cryoprecipitate follows NZBS dosing (1 unit per 30 kg), not the Lifeblood 1 unit per 5-10 kg', () => {
+  const c = D.ADULT_DRUGS.find(d => d.name === 'Cryoprecipitate');
+  is(c.bolusLabel, '1 unit/30 kg');
+  is(Math.round(c.bolusLo * 90 * 100) / 100, 3, '90 kg adult is 3 NZBS units, not 9-18:');
+  is(c.bolusHi, c.bolusLo);
+});
+
+test('Fibrinogen concentrate uses the acquired-bleeding dose, with 70 mg/kg kept in the note', () => {
+  const f = D.ADULT_DRUGS.find(d => d.name === 'Fibrinogen concentrate');
+  is(f.bolusLo, 25); is(f.bolusHi, 50, 'was 70 mg/kg, the congenital-deficiency dose:');
+  is(/70 mg\/kg/.test(f.notes), true, 'congenital dose still in the note:');
+});
+
 test('drugs that DO enforce their cap keep doing so', () => {
   const enforced = ['Clonidine', 'Ketamine', 'Fentanyl', 'Morphine', 'Ibuprofen',
                     'Paracetamol (load)', 'Paracetamol (maintenance)', 'Tramadol', 'Amiodarone'];
