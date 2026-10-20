@@ -92,6 +92,12 @@ test('Cryoprecipitate follows NZBS dosing (1 unit per 30 kg), not the Lifeblood 
   is(c.bolusHi, c.bolusLo);
 });
 
+test('Fibrinogen concentrate uses the acquired-bleeding dose, with 70 mg/kg kept in the note', () => {
+  const f = D.ADULT_DRUGS.find(d => d.name === 'Fibrinogen concentrate');
+  is(f.bolusLo, 25); is(f.bolusHi, 50, 'was 70 mg/kg, the congenital-deficiency dose:');
+  is(/70 mg\/kg/.test(f.notes), true, 'congenital dose still in the note:');
+});
+
 test('drugs that DO enforce their cap keep doing so', () => {
   const enforced = ['Clonidine', 'Ketamine', 'Fentanyl', 'Morphine', 'Ibuprofen',
                     'Paracetamol (load)', 'Paracetamol (maintenance)', 'Tramadol', 'Amiodarone'];
